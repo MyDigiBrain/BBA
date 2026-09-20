@@ -1,0 +1,1643 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="אימונים">
+<meta name="theme-color" content="#EEF1F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1319" media="(prefers-color-scheme: dark)">
+<title>יומן אימונים</title>
+<link id="manifest" rel="manifest">
+<link id="appicon" rel="apple-touch-icon">
+<style>
+  :root{
+    --paper:#EEF1F5; --card:#FFFFFF; --ink:#111820; --muted:#6A7684; --line:#DBE1E9;
+    --accent:#E4571B; --done:#2F7D4F; --blue:#2F6FED; --radius:16px; --tap:48px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --paper:#0E1319; --card:#171E27; --ink:#EAEEF3; --muted:#8C99A8; --line:#242E3A;
+           --accent:#FF7A3D; --done:#4FB07A; --blue:#5C90FF; }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:100%}
+  body{background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Hebrew","Segoe UI",system-ui,"Arial Hebrew",Arial,sans-serif;
+    font-size:17px;line-height:1.35;-webkit-user-select:none;user-select:none;
+    overscroll-behavior-y:contain;font-variant-numeric:tabular-nums;}
+  button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+  input,select,textarea{font:inherit;font-size:16px;color:inherit}
+
+  header{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--line);
+    padding:calc(env(safe-area-inset-top) + 8px) 14px 6px}
+  .navrow{display:grid;grid-template-columns:var(--tap) 1fr var(--tap);align-items:center}
+  .navbtn{width:var(--tap);height:var(--tap);display:grid;place-items:center;font-size:26px;color:var(--muted);border-radius:12px}
+  .navbtn:active{background:var(--line)}
+  .navbtn.hid{visibility:hidden}
+  .title{text-align:center}
+  .range{font-size:19px;font-weight:700;letter-spacing:-.2px}
+  .sub{font-size:13px;color:var(--muted);margin-top:2px;display:flex;gap:8px;justify-content:center;align-items:center}
+  .todaybtn{color:var(--accent);font-size:13px;font-weight:600}
+  .util{display:flex;align-items:center;gap:8px;height:32px}
+  .gear{margin-inline-start:auto;width:34px;height:34px;display:grid;place-items:center;color:var(--muted);font-size:18px;border-radius:10px}
+  .gear:active{background:var(--line)}
+  .who{height:30px;padding:0 11px;display:grid;place-items:center;color:var(--muted);font-size:14px;font-weight:600;border-radius:10px;background:var(--card);border:1px solid var(--line)}
+
+  main{padding:10px 12px 170px;max-width:560px;margin:0 auto}
+
+  /* ----- week ----- */
+  .day{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:8px;padding:10px 12px;
+    display:grid;grid-template-columns:74px 1fr auto;align-items:center;gap:8px}
+  .day.empty{padding:7px 12px;background:transparent;border-style:dashed}
+  .day.today{border-color:var(--accent);border-width:2px;padding:9px 11px}
+  .dname{font-weight:700;font-size:16px}
+  .day.empty .dname{font-weight:500;color:var(--muted)}
+  .ddate{font-size:12px;color:var(--muted);margin-top:1px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;min-height:26px;align-items:center}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:11px;font-size:14px;font-weight:600;
+    background:transparent;color:var(--c);border:1px solid var(--c);
+    background:color-mix(in srgb, var(--c) 14%, transparent);
+    border-color:color-mix(in srgb, var(--c) 34%, transparent);max-width:100%}
+  .chip .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+  .chip .x{font-size:12px;opacity:.75}
+  .chip.planned{background:transparent;color:var(--muted);border-style:dashed;border-color:var(--line);font-weight:500}
+  .chip.planned .box{width:16px;height:16px;border:1.5px solid var(--muted);border-radius:5px}
+  .note{font-size:12px;color:var(--muted);opacity:.9}
+  .addbtn{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-size:26px;font-weight:300;color:var(--accent);
+    background:transparent;background:color-mix(in srgb, var(--accent) 12%, transparent)}
+  .empty .addbtn{width:34px;height:34px;font-size:22px;background:transparent;color:var(--muted)}
+
+  /* ----- cards / lists ----- */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+  .card h3{margin:0 0 10px;font-size:15px;color:var(--muted);font-weight:600}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center}
+  .stat .v{font-size:24px;font-weight:700;letter-spacing:-.5px}
+  .stat .l{font-size:12px;color:var(--muted);margin-top:2px}
+  .stat .p{font-size:12px;color:var(--blue);font-weight:600;margin-top:2px}
+  .listrow{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+    border-radius:14px;padding:11px 13px;margin-bottom:7px;width:100%;text-align:start}
+  .listrow:active{background:var(--line)}
+  .listrow .main{flex:1;min-width:0}
+  .listrow .t1{font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .listrow .t2{font-size:13px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .badge{flex:none;background:transparent;background:color-mix(in srgb, var(--accent) 13%, transparent);
+    color:var(--accent);font-weight:700;border-radius:11px;padding:6px 10px;font-size:15px;text-align:center;min-width:52px}
+  .badge small{display:block;font-size:10px;font-weight:600;opacity:.8}
+  .segs{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;padding-bottom:2px}
+  .seg{flex:none;padding:8px 13px;border-radius:11px;border:1px solid var(--line);background:var(--card);font-size:14px;font-weight:600;color:var(--muted)}
+  .seg.on{border-color:var(--accent);color:var(--accent);background:transparent;background:color-mix(in srgb, var(--accent) 12%, transparent)}
+  .blank{text-align:center;color:var(--muted);font-size:15px;padding:34px 20px;line-height:1.6}
+  svg.chart{width:100%;height:auto;display:block;touch-action:pan-y}
+
+  /* ----- bottom ----- */
+  .bar{position:fixed;inset-inline:0;bottom:calc(env(safe-area-inset-bottom) + 58px);z-index:21;padding:8px 14px;
+    background:linear-gradient(to top, var(--paper) 70%, transparent)}
+  .primary{display:block;width:100%;max-width:532px;margin:0 auto;background:var(--accent);color:#fff;font-size:18px;font-weight:700;
+    padding:16px;border-radius:15px;text-align:center}
+  .primary:active{filter:brightness(.92)}
+  .ghost{display:block;width:100%;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;font-weight:600;text-align:center}
+  .tabs{position:fixed;inset-inline:0;bottom:0;z-index:22;display:grid;grid-template-columns:repeat(3,1fr);
+    background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  .tab{padding:8px 0 9px;text-align:center;color:var(--muted);font-size:11px;font-weight:600}
+  .tab span{display:block;font-size:21px;line-height:1.15;filter:grayscale(1);opacity:.65}
+  .tab.on{color:var(--accent)}
+  .tab.on span{filter:none;opacity:1}
+
+  /* ----- sheet ----- */
+  .scrim{position:fixed;inset:0;background:rgba(8,12,18,.45);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:40}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;inset-inline:0;bottom:0;z-index:50;background:var(--paper);border-radius:22px 22px 0 0;
+    padding:8px 16px calc(env(safe-area-inset-bottom) + 18px);max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    transform:translateY(102%);transition:transform .24s cubic-bezier(.32,.72,0,1);max-width:560px;margin:0 auto}
+  .sheet.on{transform:translateY(0)}
+  .grab{width:38px;height:4px;border-radius:2px;background:var(--line);margin:6px auto 12px}
+  .sheet h2{font-size:19px;margin:0 0 4px}
+  .sheet h3{font-size:13px;color:var(--muted);font-weight:600;margin:20px 0 8px}
+  .sheet p.hint{font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.5}
+  .opt{display:flex;align-items:center;gap:12px;width:100%;background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:14px;margin-bottom:8px;font-size:17px;font-weight:600;text-align:start}
+  .opt:active{background:var(--line)}
+  .opt .em{font-size:20px;line-height:1}
+  .opt .tail{margin-inline-start:auto;color:var(--muted);font-size:14px;font-weight:500}
+  .opt.danger{color:#C63232}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
+  .field input, .field select{width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .num label{text-align:center}
+  .num input{text-align:center;font-size:20px;font-weight:700;padding:11px 4px}
+  .swatches{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 14px}
+  .sw{width:38px;height:38px;border-radius:50%;border:3px solid transparent}
+  .sw.sel{border-color:var(--ink)}
+  .ems{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 16px}
+  .em-opt{width:44px;height:44px;border-radius:12px;background:var(--card);border:1px solid var(--line);font-size:22px}
+  .em-opt.sel{border-color:var(--accent);border-width:2px}
+  pre.report{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;font-family:inherit;font-size:15px;
+    line-height:1.6;white-space:pre-wrap;word-break:break-word;margin:0 0 14px;-webkit-user-select:text;user-select:text;max-height:42vh;overflow:auto}
+  .toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card);border:1px solid var(--line);
+    border-radius:14px;padding:13px 14px;margin-bottom:8px}
+  .switch{width:50px;height:30px;border-radius:15px;background:var(--line);position:relative;flex:none;transition:background .2s}
+  .switch i{position:absolute;top:3px;inset-inline-start:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .switch.on{background:var(--done)}
+  .switch.on i{transform:translateX(-20px)}
+  .tline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:6px}
+  .tline b{font-size:14px;min-width:52px}
+  .tpick{padding:5px 9px;border-radius:9px;border:1px dashed var(--line);font-size:13px;color:var(--muted)}
+  .tpick.on{border-style:solid;border-color:var(--c);background:transparent;color:var(--c);font-weight:600}
+  #toast{position:fixed;inset-inline:0;bottom:calc(env(safe-area-inset-bottom) + 130px);z-index:60;display:flex;justify-content:center;pointer-events:none}
+  #toast .t{background:var(--ink);color:var(--paper);border-radius:13px;padding:12px 16px;font-size:15px;display:flex;align-items:center;gap:16px;
+    opacity:0;transform:translateY(8px);transition:all .18s ease;pointer-events:auto;max-width:92%}
+  #toast .t.on{opacity:1;transform:none}
+  #toast button{color:var(--accent);font-weight:700}
+  /* ----- מסך כניסה ----- */
+  #gate{position:fixed;inset:0;z-index:80;background:var(--paper);display:grid;place-items:center;overflow:auto;
+    padding:calc(env(safe-area-inset-top) + 26px) 20px calc(env(safe-area-inset-bottom) + 26px)}
+  #gate[hidden]{display:none}
+  .gbox{width:100%;max-width:370px;text-align:center}
+  .gmark{width:64px;height:64px;border-radius:18px;background:var(--accent);color:#fff;font-size:30px;
+    display:grid;place-items:center;margin:0 auto 14px}
+  #gate h1{font-size:24px;margin:0 0 8px;letter-spacing:-.3px}
+  .glede{color:var(--muted);font-size:15px;line-height:1.5;margin:0 0 24px}
+  .gbtn{width:100%;height:54px;border-radius:14px;border:1px solid var(--line);background:var(--card);
+    font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px}
+  .gbtn:active{background:var(--line)}
+  .gbtn .g{width:24px;height:24px;border-radius:50%;background:#fff;border:1px solid var(--line);
+    color:#4285F4;font-weight:800;font-size:15px;display:grid;place-items:center;flex:none}
+  .gor{color:var(--muted);font-size:13px;margin:20px 0 14px}
+  #gate .field{text-align:start}
+  .glinks{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+  .glink{color:var(--muted);font-size:14px;text-decoration:underline}
+  .gmsg{min-height:22px;font-size:14px;line-height:1.4;margin:16px 0 0;color:var(--accent)}
+  .gmsg.ok{color:var(--done)}
+  .gwait{color:var(--muted);font-size:15px}
+  body.locked > header, body.locked > main, body.locked > .bar, body.locked > nav{display:none}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<section id="gate" hidden>
+  <div class="gbox" id="gbox"></div>
+</section>
+
+<header>
+  <div class="util">
+    <button class="who" id="who" hidden></button>
+    <button class="gear" id="gear" aria-label="הגדרות">⚙︎</button>
+  </div>
+  <div class="navrow">
+    <button class="navbtn" id="prev" aria-label="הקודם">›</button>
+    <div class="title">
+      <div class="range" id="range"></div>
+      <div class="sub"><span id="sub"></span><button class="todaybtn" id="todayBtn" hidden>היום</button></div>
+    </div>
+    <button class="navbtn" id="next" aria-label="הבא">‹</button>
+  </div>
+</header>
+
+<main id="view"></main>
+
+<div class="bar"><button class="primary" id="cta"></button></div>
+<nav class="tabs">
+  <button class="tab" data-tab="train"><span>🏀</span>אימונים</button>
+  <button class="tab" data-tab="grow"><span>📏</span>גדילה</button>
+  <button class="tab" data-tab="games"><span>📊</span>משחקים</button>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"></div>
+<div id="toast"></div>
+
+<script>
+/* ===========================================================================
+   הגדרות החיבור לחשבון (Firebase)
+
+   כל עוד השורות האלה ריקות, האפליקציה עובדת מקומית: בלי חשבון, והנתונים
+   נשמרים בדפדפן בלבד. כדי להפעיל כניסה עם Google וסנכרון בין מכשירים,
+   מדביקים כאן את הבלוק שמתקבל ב Firebase, במסך Project settings, אפליקציית Web.
+   אין צורך להסתיר את המפתח הזה, הוא נועד להיות גלוי; מה שמגן על הנתונים
+   הם כללי הגישה ב Firestore, שמופיעים בקובץ README.
+   =========================================================================== */
+var FIREBASE_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
+};
+
+window.TrainingCloud = {
+  config: FIREBASE_CONFIG,
+  configured: !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId),
+  api: null,
+  onUser: function(){}, onHome: function(){}, onSpace: function(){}, onRecords: function(){},
+  onSettings: function(){}, onProblem: function(){}, onNotice: function(){}, onDown: function(){}
+};
+</script>
+
+<script>
+"use strict";
+const LMS={"b":{"h":[[60,1.2664,109.18,0.04259],[63,1.2767,110.81,0.0429],[66,1.2554,112.43,0.04318],[69,1.2073,114.05,0.04344],[72,1.1374,115.66,0.04367],[75,1.0514,117.27,0.04388],[78,0.9549,118.87,0.04407],[81,0.8536,120.46,0.04424],[84,0.7532,122.03,0.0444],[87,0.6591,123.59,0.04457],[90,0.5759,125.13,0.04474],[93,0.5071,126.64,0.04492],[96,0.4553,128.12,0.04513],[99,0.4213,129.58,0.04536],[102,0.4048,131.0,0.04562],[105,0.4039,132.38,0.04591],[108,0.4157,133.73,0.04622],[111,0.4362,135.05,0.04655],[114,0.461,136.33,0.0469],[117,0.4856,137.59,0.04725],[120,0.5056,138.82,0.04761],[123,0.5174,140.04,0.04796],[126,0.5186,141.26,0.0483],[129,0.5084,142.48,0.04863],[132,0.4879,143.73,0.04894],[135,0.4611,145.02,0.04922],[138,0.4346,146.37,0.04949],[141,0.4175,147.79,0.04973],[144,0.4209,149.31,0.04995],[147,0.4561,150.93,0.05013],[150,0.532,152.66,0.05027],[153,0.6527,154.5,0.05035],[156,0.8162,156.41,0.05033],[159,1.014,158.38,0.0502],[162,1.2328,160.35,0.04993],[165,1.4567,162.29,0.04951],[168,1.6704,164.14,0.04895],[171,1.8605,165.88,0.04827],[174,2.0168,167.46,0.04751],[177,2.1326,168.89,0.0467],[180,2.2052,170.14,0.04589],[183,2.2349,171.23,0.0451],[186,2.2253,172.16,0.04436],[189,2.1823,172.95,0.04369],[192,2.113,173.61,0.04309],[195,2.0255,174.17,0.04256],[198,1.9273,174.63,0.04211],[201,1.8252,175.02,0.04173],[204,1.7247,175.34,0.04141],[207,1.6298,175.61,0.04115],[210,1.5433,175.84,0.04094],[213,1.4665,176.03,0.04077],[216,1.4,176.19,0.04064],[219,1.3438,176.32,0.04055],[222,1.2971,176.44,0.04047],[225,1.2593,176.53,0.04042],[228,1.2292,176.62,0.04039],[231,1.2057,176.69,0.04037],[234,1.188,176.75,0.04036],[237,1.1751,176.81,0.04036],[240,1.1673,176.85,0.04037]],"w":[[60,-1.0005,18.49,0.12988],[63,-1.0161,19.05,0.13231],[66,-1.035,19.62,0.13468],[69,-1.0587,20.2,0.13695],[72,-1.0875,20.78,0.13914],[75,-1.121,21.36,0.14126],[78,-1.1581,21.96,0.14331],[81,-1.1973,22.56,0.14533],[84,-1.2365,23.17,0.14734],[87,-1.2735,23.79,0.14937],[90,-1.3063,24.43,0.15147],[93,-1.3329,25.08,0.15366],[96,-1.3518,25.75,0.15597],[99,-1.3622,26.45,0.15842],[102,-1.3635,27.16,0.16103],[105,-1.3557,27.91,0.16377],[108,-1.3394,28.68,0.16666],[111,-1.3153,29.48,0.16966],[114,-1.2844,30.32,0.17273],[117,-1.2478,31.19,0.17584],[120,-1.2067,32.09,0.17893],[123,-1.1622,33.03,0.18195],[126,-1.1155,34.0,0.18485],[129,-1.0676,35.02,0.18756],[132,-1.0193,36.07,0.19003],[135,-0.9714,37.17,0.19221],[138,-0.9247,38.3,0.19405],[141,-0.8797,39.47,0.19552],[144,-0.837,40.67,0.19659],[147,-0.797,41.92,0.19724],[150,-0.7603,43.19,0.19746],[153,-0.7272,44.49,0.19727],[156,-0.6982,45.81,0.19666],[159,-0.6737,47.16,0.19568],[162,-0.6541,48.51,0.19434],[165,-0.6401,49.87,0.19271],[168,-0.6319,51.23,0.19081],[171,-0.63,52.58,0.1887],[174,-0.6349,53.91,0.18644],[177,-0.6468,55.22,0.18408],[180,-0.6656,56.49,0.18167],[183,-0.6913,57.72,0.17925],[186,-0.7232,58.9,0.17689],[189,-0.7606,60.03,0.17461],[192,-0.802,61.1,0.17246],[195,-0.8459,62.1,0.17047],[198,-0.8904,63.03,0.16865],[201,-0.9335,63.9,0.16704],[204,-0.9732,64.7,0.16564],[207,-1.0077,65.43,0.16444],[210,-1.0354,66.11,0.16344],[213,-1.0552,66.72,0.16261],[216,-1.0662,67.29,0.16192],[219,-1.0683,67.81,0.16135],[222,-1.0613,68.3,0.16087],[225,-1.046,68.76,0.16046],[228,-1.0233,69.19,0.16014],[231,-0.9951,69.61,0.15995],[234,-0.9644,70.0,0.16001],[237,-0.9354,70.35,0.16051],[240,-0.9165,70.6,0.16148]],"bmi":[[60,-2.6152,15.42,0.07599],[63,-2.8145,15.39,0.07752],[66,-2.9818,15.38,0.07921],[69,-3.1141,15.38,0.08106],[72,-3.2117,15.38,0.08305],[75,-3.2773,15.4,0.08517],[78,-3.3148,15.43,0.0874],[81,-3.3286,15.47,0.08973],[84,-3.3232,15.51,0.09213],[87,-3.3026,15.57,0.09459],[90,-3.2705,15.63,0.09708],[93,-3.2298,15.7,0.09959],[96,-3.1831,15.78,0.10209],[99,-3.1324,15.87,0.10457],[102,-3.0794,15.96,0.10701],[105,-3.0253,16.06,0.1094],[108,-2.9711,16.17,0.11172],[111,-2.9176,16.28,0.11396],[114,-2.8653,16.4,0.11611],[117,-2.8146,16.52,0.11817],[120,-2.7656,16.65,0.12011],[123,-2.7187,16.78,0.12195],[126,-2.6739,16.92,0.12366],[129,-2.6312,17.06,0.12526],[132,-2.5906,17.2,0.12673],[135,-2.552,17.35,0.12808],[138,-2.5153,17.5,0.12931],[141,-2.4805,17.66,0.13041],[144,-2.4474,17.81,0.13139],[147,-2.4159,17.98,0.13225],[150,-2.3859,18.14,0.13299],[153,-2.3571,18.3,0.13362],[156,-2.3295,18.47,0.13414],[159,-2.3028,18.64,0.13456],[162,-2.277,18.81,0.13488],[165,-2.2519,18.98,0.13511],[168,-2.2274,19.16,0.13525],[171,-2.2032,19.33,0.13532],[174,-2.1794,19.51,0.13531],[177,-2.1558,19.68,0.13524],[180,-2.1323,19.86,0.13511],[183,-2.1089,20.03,0.13493],[186,-2.0856,20.21,0.13472],[189,-2.0623,20.38,0.13447],[192,-2.039,20.56,0.1342],[195,-2.0159,20.73,0.13391],[198,-1.9932,20.9,0.13362],[201,-1.9708,21.07,0.13333],[204,-1.9491,21.24,0.13306],[207,-1.9284,21.41,0.1328],[210,-1.9088,21.57,0.13258],[213,-1.8908,21.74,0.13241],[216,-1.8747,21.9,0.13229],[219,-1.8607,22.05,0.13223],[222,-1.8493,22.21,0.13225],[225,-1.8407,22.35,0.13236],[228,-1.8351,22.5,0.13257],[231,-1.8327,22.64,0.13289],[234,-1.8334,22.78,0.13334],[237,-1.8371,22.91,0.13393],[240,-1.8436,23.04,0.13468]]},"g":{"h":[[60,-0.0577,107.96,0.04428],[63,-0.1132,109.72,0.04447],[66,-0.1592,111.49,0.04465],[69,-0.1947,113.25,0.04482],[72,-0.2191,115.01,0.04496],[75,-0.2323,116.74,0.0451],[78,-0.2348,118.45,0.04523],[81,-0.2271,120.13,0.04535],[84,-0.2102,121.76,0.04546],[87,-0.1855,123.35,0.04558],[90,-0.1544,124.9,0.04569],[93,-0.1184,126.39,0.04582],[96,-0.0793,127.83,0.04597],[99,-0.0385,129.22,0.04614],[102,0.0027,130.56,0.04634],[105,0.0436,131.86,0.04659],[108,0.0841,133.13,0.04688],[111,0.1254,134.38,0.04724],[114,0.1698,135.63,0.04767],[117,0.2212,136.9,0.04816],[120,0.2847,138.21,0.0487],[123,0.3659,139.58,0.04927],[126,0.4692,141.04,0.04981],[129,0.5963,142.6,0.05026],[132,0.7443,144.26,0.05052],[135,0.9044,146.02,0.05053],[138,1.0625,147.84,0.05021],[141,1.2011,149.68,0.04955],[144,1.303,151.49,0.0486],[147,1.3564,153.19,0.04744],[150,1.3582,154.76,0.0462],[153,1.3154,156.14,0.04498],[156,1.243,157.34,0.04386],[159,1.1585,158.36,0.0429],[162,1.077,159.21,0.04211],[165,1.0083,159.91,0.0415],[168,0.9566,160.48,0.04102],[171,0.9221,160.94,0.04067],[174,0.9025,161.33,0.04041],[177,0.8947,161.64,0.04022],[180,0.8956,161.9,0.04008],[183,0.9025,162.11,0.03998],[186,0.9134,162.29,0.03991],[189,0.9266,162.44,0.03986],[192,0.9411,162.57,0.03982],[195,0.9561,162.68,0.03979],[198,0.971,162.77,0.03977],[201,0.9856,162.85,0.03975],[204,0.9995,162.92,0.03973],[207,1.0127,162.99,0.03972],[210,1.0251,163.04,0.03971],[213,1.0368,163.09,0.0397],[216,1.0476,163.13,0.03969],[219,1.0576,163.17,0.03968],[222,1.0669,163.2,0.03967],[225,1.0754,163.23,0.03966],[228,1.0833,163.26,0.03966],[231,1.0906,163.28,0.03965],[234,1.0972,163.3,0.03965],[237,1.1033,163.32,0.03964],[240,1.108,163.34,0.03964]],"w":[[60,-1.2877,18.02,0.14119],[63,-1.306,18.59,0.14326],[66,-1.319,19.16,0.14532],[69,-1.3261,19.74,0.14741],[72,-1.3268,20.34,0.14959],[75,-1.3209,20.94,0.15189],[78,-1.3085,21.57,0.15433],[81,-1.2899,22.21,0.15693],[84,-1.2655,22.87,0.15969],[87,-1.2363,23.55,0.16262],[90,-1.2029,24.26,0.16569],[93,-1.1664,24.99,0.16888],[96,-1.1277,25.76,0.17215],[99,-1.0879,26.55,0.17546],[102,-1.0478,27.38,0.17877],[105,-1.0085,28.25,0.18204],[108,-0.9707,29.14,0.1852],[111,-0.935,30.07,0.18822],[114,-0.9022,31.04,0.19104],[117,-0.8727,32.04,0.19363],[120,-0.8469,33.06,0.19595],[123,-0.8252,34.12,0.19796],[126,-0.8079,35.19,0.19965],[129,-0.7952,36.28,0.20099],[132,-0.7874,37.39,0.20197],[135,-0.7846,38.5,0.20259],[138,-0.7869,39.62,0.20285],[141,-0.7945,40.73,0.20275],[144,-0.8076,41.83,0.2023],[147,-0.8262,42.91,0.20152],[150,-0.8503,43.97,0.20042],[153,-0.8801,44.99,0.19903],[156,-0.9155,45.98,0.19736],[159,-0.9565,46.93,0.19545],[162,-1.0031,47.84,0.19333],[165,-1.0548,48.69,0.19102],[168,-1.1116,49.49,0.18856],[171,-1.1729,50.24,0.18598],[174,-1.238,50.93,0.18333],[177,-1.3062,51.56,0.18063],[180,-1.3765,52.14,0.17795],[183,-1.4476,52.66,0.17531],[186,-1.5182,53.13,0.17276],[189,-1.5866,53.56,0.17035],[192,-1.6512,53.95,0.16812],[195,-1.7104,54.29,0.16612],[198,-1.7622,54.61,0.16437],[201,-1.8053,54.91,0.16291],[204,-1.8381,55.18,0.16175],[207,-1.8596,55.45,0.16092],[210,-1.869,55.71,0.16042],[213,-1.866,55.97,0.16024],[216,-1.8509,56.23,0.16037],[219,-1.8245,56.5,0.16077],[222,-1.788,56.78,0.1614],[225,-1.7434,57.07,0.16221],[228,-1.6933,57.35,0.16314],[231,-1.6407,57.63,0.16412],[234,-1.5895,57.88,0.16509],[237,-1.5438,58.09,0.16599],[240,-1.5134,58.22,0.16664]],"bmi":[[60,-3.3501,15.15,0.0843],[63,-3.3497,15.15,0.08638],[66,-3.3255,15.16,0.08868],[69,-3.2827,15.18,0.09116],[72,-3.2256,15.22,0.0938],[75,-3.1584,15.26,0.09657],[78,-3.0843,15.32,0.09943],[81,-3.0062,15.38,0.10236],[84,-2.9262,15.45,0.10533],[87,-2.8461,15.54,0.10831],[90,-2.7673,15.63,0.11129],[93,-2.6908,15.72,0.11425],[96,-2.6172,15.83,0.11716],[99,-2.5471,15.94,0.12],[102,-2.481,16.06,0.12277],[105,-2.4188,16.18,0.12544],[108,-2.3609,16.31,0.12801],[111,-2.3072,16.44,0.13047],[114,-2.2578,16.58,0.1328],[117,-2.2125,16.72,0.135],[120,-2.1713,16.86,0.13706],[123,-2.1341,17.01,0.13898],[126,-2.1007,17.16,0.14075],[129,-2.0712,17.31,0.14238],[132,-2.0452,17.47,0.14387],[135,-2.0228,17.63,0.14521],[138,-2.0038,17.78,0.1464],[141,-1.9881,17.94,0.14745],[144,-1.9755,18.1,0.14836],[147,-1.966,18.26,0.14914],[150,-1.9595,18.42,0.14978],[153,-1.9559,18.58,0.1503],[156,-1.955,18.74,0.15071],[159,-1.9568,18.89,0.15099],[162,-1.9611,19.05,0.15118],[165,-1.9679,19.2,0.15126],[168,-1.9771,19.35,0.15126],[171,-1.9885,19.5,0.15117],[174,-2.002,19.65,0.15101],[177,-2.0175,19.79,0.15079],[180,-2.0349,19.93,0.15051],[183,-2.0539,20.07,0.15019],[186,-2.0745,20.2,0.14984],[189,-2.0963,20.33,0.14947],[192,-2.1192,20.45,0.14909],[195,-2.1428,20.57,0.14871],[198,-2.167,20.69,0.14835],[201,-2.1915,20.8,0.14802],[204,-2.2157,20.91,0.14772],[207,-2.2395,21.01,0.14749],[210,-2.2624,21.1,0.14732],[213,-2.2839,21.19,0.14724],[216,-2.3037,21.28,0.14727],[219,-2.3212,21.35,0.14741],[222,-2.336,21.43,0.14769],[225,-2.3477,21.49,0.14812],[228,-2.3557,21.55,0.14872],[231,-2.3596,21.6,0.14952],[234,-2.359,21.65,0.15052],[237,-2.3535,21.69,0.15175],[240,-2.3428,21.72,0.15324]]}};
+
+/* ============================================================
+   1. אחסון מקומי
+   ============================================================ */
+const KEY = "training-log:v2", OLDKEY = "training-log:v1";
+const Store = {
+  async get(k){
+    try{ if (window.storage && window.storage.get){ const r = await window.storage.get(k); return r && r.value ? JSON.parse(r.value) : null; } }catch(e){}
+    try{ const raw = localStorage.getItem(k); return raw ? JSON.parse(raw) : null; }catch(e){ return null; }
+  },
+  async set(k, obj){
+    const s = JSON.stringify(obj);
+    try{ if (window.storage && window.storage.set){ await window.storage.set(k, s); return true; } }catch(e){}
+    try{ localStorage.setItem(k, s); return true; }catch(e){ return false; }
+  }
+};
+
+/* ============================================================
+   2. מודל הנתונים
+   כל רשומה נושאת updatedAt ודגל מחיקה, כדי שמיזוג בין שני
+   מכשירים יהיה חד־משמעי ולא ימחק מידע.
+   ============================================================ */
+const PALETTE = ["#2F6FED","#E4571B","#2F9E6B","#7C4DBF","#D4A017","#D6336C"];
+const EMOJIS  = ["🏀","🏋️","🎯","👤","🏃","⚡","💪","⭐"];
+const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
+const MONTHS = ["בינואר","בפברואר","במרץ","באפריל","במאי","ביוני","ביולי","באוגוסט","בספטמבר","באוקטובר","בנובמבר","בדצמבר"];
+const RLM = "\u200F";
+const now = () => new Date().toISOString();
+function uid(p){ return p + Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2,7); }
+
+const DEFAULT_TYPES = [
+  ["אימון קבוצתי", PALETTE[0], "🏀"], ["חדר כושר", PALETTE[1], "🏋️"],
+  ["אימון אישי – אלון", PALETTE[2], "👤"], ["אימון אישי – רגב", PALETTE[3], "👤"],
+  ["אימון קליעות עצמאי", PALETTE[4], "🎯"]
+];
+function freshData(){
+  const pid = uid("p");
+  const t = (name,color,icon)=>({id:uid("t"),playerId:pid,name,color,icon,archived:false,updatedAt:now(),deleted:false});
+  return {
+    schemaVersion:2, deviceId: uid("d"), activePlayerId: pid,
+    players:[{id:pid,name:"",dob:"",sex:"b",coachPhone:"",color:PALETTE[0],
+              template:{0:[],1:[],2:[],3:[],4:[],5:[],6:[]},templateOn:false,updatedAt:now(),deleted:false}],
+    settings:{parentPhone:"",deviceName:"",lastBackupAt:null,updatedAt:now()},
+    types: DEFAULT_TYPES.map(d=> t(d[0], d[1], d[2])),
+    entries:[], measurements:[], games:[]
+  };
+}
+const COLS = ["players","types","entries","measurements","games"];
+
+let data = freshData();
+let tab = "train";
+let cursor = new Date();
+let growMetric = "h", gameMetric = "pts";
+let lastDeleted = null, toastTimer = null;
+
+/* ---------- מצב החשבון ---------- */
+const cloud = window.TrainingCloud || {configured:false};
+const WANTS_CLOUD = !!cloud.configured;
+const SPACEKEY = "training-log:space", PUSHKEY = "training-log:pushed";
+let user = null;            // {uid, email, name}
+let space = null;           // {id, ownerUid, ownerEmail, memberEmails}
+let homeSpaceId = null;
+let authKnown = !WANTS_CLOUD;
+let cloudDown = false;
+let authMode = "in";
+let busy = false;
+let pushed = {};            // id -> updatedAt שכבר נשלח לשרת
+let pushing = false, pushTimer = null;
+
+const BLANK_PLAYER = {id:"", name:"", dob:"", sex:"b", coachPhone:"", color:PALETTE[0],
+  template:{0:[],1:[],2:[],3:[],4:[],5:[],6:[]}, templateOn:false, updatedAt:"", deleted:false};
+const P = () => data.players.find(p=>p.id===data.activePlayerId && !p.deleted)
+              || data.players.find(p=>!p.deleted) || BLANK_PLAYER;
+const live = c => data[c].filter(r=>!r.deleted);
+const mine = c => live(c).filter(r=>r.playerId===data.activePlayerId);
+const myTypes = (inclArch=false)=> mine("types").filter(t=>inclArch || !t.archived);
+const typeById = id => data.types.find(t=>t.id===id);
+function touch(r){ r.updatedAt = now(); save(); }
+function softDelete(r){ r.deleted = true; touch(r); }
+
+let saveTimer=null;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{ Store.set(KEY, data); queuePush(); }, 150);
+}
+
+/* ---------- תאריכים ---------- */
+function key(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function parseKey(k){ const [y,m,d] = k.split("-").map(Number); return new Date(y, m-1, d); }
+function startOfWeek(d){ const x = new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()-x.getDay()); return x; }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function rangeLabel(s){
+  const e = addDays(s,6);
+  return s.getMonth()===e.getMonth()
+    ? s.getDate()+"–"+e.getDate()+" "+MONTHS[e.getMonth()]+" "+e.getFullYear()
+    : s.getDate()+" "+MONTHS[s.getMonth()]+" – "+e.getDate()+" "+MONTHS[e.getMonth()]+" "+e.getFullYear();
+}
+const isToday = d => key(d)===key(new Date());
+function shortDate(k){ const d = parseKey(k); return d.getDate()+"."+(d.getMonth()+1)+"."+String(d.getFullYear()).slice(2); }
+function ageMonths(dob, onKey){
+  if (!dob) return null;
+  const a = parseKey(dob), b = onKey ? parseKey(onKey) : new Date();
+  let m = (b.getFullYear()-a.getFullYear())*12 + (b.getMonth()-a.getMonth());
+  const dayFrac = (b.getDate()-a.getDate()) / 30.4375;
+  return m + dayFrac;
+}
+function ageText(dob){
+  const m = ageMonths(dob);
+  if (m===null) return "";
+  let y = Math.floor(m/12), mo = Math.round(m-y*12);
+  if (mo===12){ y++; mo=0; }
+  return y+" שנים"+(mo?" ו-"+mo+" חודשים":"");
+}
+
+/* ============================================================
+   3. אחוזונים (טבלאות CDC לגילאי 5–20)
+   ============================================================ */
+function lmsAt(sex, metric, months){
+  const tbl = (LMS[sex]||LMS.b)[metric]; if (!tbl || !tbl.length) return null;
+  if (months <= tbl[0][0]) return tbl[0].slice(1);
+  if (months >= tbl[tbl.length-1][0]) return tbl[tbl.length-1].slice(1);
+  for (let i=1;i<tbl.length;i++){
+    if (months <= tbl[i][0]){
+      const a = tbl[i-1], b = tbl[i], f = (months-a[0])/(b[0]-a[0]);
+      return [a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f, a[3]+(b[3]-a[3])*f];
+    }
+  }
+  return null;
+}
+function zScore(v, L, M, S){ return L ? (Math.pow(v/M, L)-1)/(L*S) : Math.log(v/M)/S; }
+function normCdf(z){
+  const t = 1/(1+0.2316419*Math.abs(z));
+  const d = 0.3989423*Math.exp(-z*z/2);
+  let p = d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+  return z>0 ? 1-p : p;
+}
+function percentile(sex, metric, months, value){
+  const l = lmsAt(sex, metric, months); if (!l || !value) return null;
+  return Math.round(normCdf(zScore(value, l[0], l[1], l[2]))*100);
+}
+function valueAtPct(sex, metric, months, pct){
+  const l = lmsAt(sex, metric, months); if (!l) return null;
+  const z = zFromP(pct), [L,M,S] = l;
+  return L ? M*Math.pow(1+L*S*z, 1/L) : M*Math.exp(S*z);
+}
+function zFromP(p){ return ({3:-1.881,15:-1.036,50:0,85:1.036,97:1.881})[p]; }
+function pctLabel(p){ return p===null ? "" : "אחוזון "+Math.max(1,Math.min(99,p)); }
+
+/* ============================================================
+   4. תצוגה
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const view = $("#view");
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const num = v => (v===null||v===undefined||v==="") ? null : Number(v);
+
+function render(){
+  document.querySelectorAll(".tab").forEach(b=> b.classList.toggle("on", b.dataset.tab===tab));
+  const many = live("players").length>1;
+  $("#who").hidden = !many;
+  if (many) $("#who").textContent = (P().name||"שחקן");
+  if (tab==="train") renderTrain();
+  if (tab==="grow")  renderGrow();
+  if (tab==="games") renderGames();
+}
+
+/* ---------------- אימונים ---------------- */
+function entriesOf(k){ return mine("entries").filter(e=>e.date===k).sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||"")); }
+function groupEntries(list){
+  const out=[];
+  list.forEach(e=>{ const g = out.find(g=>g.typeId===e.typeId && !e.note && !g.entries.some(x=>x.note));
+    if (g) g.entries.push(e); else out.push({typeId:e.typeId, entries:[e]}); });
+  return out;
+}
+function usageCount(id){ return live("entries").filter(e=>e.typeId===id).length; }
+
+function renderTrain(){
+  const s = startOfWeek(cursor);
+  $("#prev").classList.remove("hid"); $("#next").classList.remove("hid");
+  $("#range").textContent = rangeLabel(s);
+  const total = [0,1,2,3,4,5,6].reduce((n,i)=> n+entriesOf(key(addDays(s,i))).length, 0);
+  const nm = (P().name||"").trim();
+  $("#sub").textContent = (!nm && !live("entries").length) ? "הקש על גלגל השיניים כדי להתחיל"
+    : (total ? total+" אימונים השבוע" : "עוד לא סומנו אימונים");
+  $("#todayBtn").hidden = key(s)===key(startOfWeek(new Date()));
+  $("#cta").textContent = "צור דוח שבועי"; $("#cta").onclick = reportSheet;
+
+  view.innerHTML = "";
+  for (let i=0;i<7;i++){
+    const d = addDays(s,i), k = key(d), list = entriesOf(k);
+    const planned = P().templateOn ? (P().template[i]||[]).filter(id=>typeById(id) && !typeById(id).archived && !typeById(id).deleted) : [];
+    const doneIds = list.map(e=>e.typeId);
+    const missing = planned.filter(id=>!doneIds.includes(id));
+
+    const row = document.createElement("div");
+    row.className = "day" + ((list.length||missing.length) ? "" : " empty") + (isToday(d) ? " today" : "");
+    const head = document.createElement("div");
+    head.innerHTML = '<div class="dname">'+DAYS[i]+'</div><div class="ddate">'+d.getDate()+"."+(d.getMonth()+1)+'</div>';
+    row.appendChild(head);
+
+    const chips = document.createElement("div"); chips.className="chips";
+    groupEntries(list).forEach(g=>{
+      const t = typeById(g.typeId);
+      const b = document.createElement("button"); b.className="chip"; b.style.setProperty("--c", t?t.color:"#888");
+      const note = g.entries.find(e=>e.note);
+      b.innerHTML = '<span>'+(t?t.icon:"⭐")+'</span><span class="nm">'+esc(t?t.name:"אימון")+'</span>'
+        +(g.entries.length>1?'<span class="x">×'+g.entries.length+'</span>':'')
+        +(note?'<span class="note">· '+esc(note.note)+'</span>':'');
+      b.onclick = ()=> entrySheet(g.entries[g.entries.length-1]);
+      chips.appendChild(b);
+    });
+    missing.forEach(id=>{
+      const t = typeById(id);
+      const b = document.createElement("button"); b.className="chip planned";
+      b.innerHTML = '<span class="box"></span><span class="nm">'+esc(t.name)+'</span>';
+      b.onclick = ()=>{ addEntry(k,id); toast("סימנת "+t.name); };
+      chips.appendChild(b);
+    });
+    row.appendChild(chips);
+
+    const add = document.createElement("button"); add.className="addbtn"; add.textContent="+";
+    add.setAttribute("aria-label","הוספת אימון ל"+DAYS[i]);
+    add.onclick = ()=> addSheet(k,i);
+    row.appendChild(add);
+    row.addEventListener("click", ev=>{ if (ev.target===row || head.contains(ev.target)) addSheet(k,i); });
+    view.appendChild(row);
+  }
+}
+function addEntry(k, typeId, note){
+  data.entries.push({id:uid("e"), playerId:data.activePlayerId, date:k, typeId, note:note||"",
+                     createdAt:now(), updatedAt:now(), deleted:false});
+  save(); render();
+}
+function removeEntry(e){
+  softDelete(e); render();
+  lastDeleted = e;
+  toast("האימון נמחק","בטל",()=>{ lastDeleted.deleted=false; touch(lastDeleted); render(); });
+}
+
+/* ---------------- גדילה ---------------- */
+const METRICS = { h:{label:"גובה", unit:"ס״מ", field:"height", lms:"h"},
+                  w:{label:"משקל", unit:"ק״ג", field:"weight", lms:"w"},
+                  bmi:{label:"BMI", unit:"", field:"bmi", lms:"bmi"},
+                  fat:{label:"אחוז שומן", unit:"%", field:"fat", lms:null},
+                  waist:{label:"היקף טבור", unit:"ס״מ", field:"waist", lms:null},
+                  arm:{label:"היקף זרוע", unit:"ס״מ", field:"arm", lms:null},
+                  thigh:{label:"היקף ירך", unit:"ס״מ", field:"thigh", lms:null} };
+const MANUAL_PCT = { h:"hPct", w:"wPct" };
+function measList(){ return mine("measurements").slice().sort((a,b)=> a.date.localeCompare(b.date)); }
+function mVal(m, k){
+  if (k==="bmi") return (m.weight && m.height) ? m.weight/Math.pow(m.height/100,2) : null;
+  return m[METRICS[k].field] || null;
+}
+function renderGrow(){
+  const p = P();
+  $("#prev").classList.add("hid"); $("#next").classList.add("hid"); $("#todayBtn").hidden = true;
+  $("#range").textContent = "גדילה";
+  $("#sub").textContent = p.dob ? "גיל "+ageText(p.dob) : "צריך תאריך לידה לחישוב אחוזונים";
+  $("#cta").textContent = "הוספת מדידה"; $("#cta").onclick = ()=> measureSheet();
+
+  const list = measList();
+  if (!list.length){
+    view.innerHTML = '<div class="blank">אין עדיין מדידות.<br>אפשר להזין גם מדידות מהעבר — הגרף ייבנה לפי התאריכים.</div>'
+      + '<button class="ghost" id="impMeas" style="margin-bottom:10px">ייבוא מדידות מקובץ</button>'
+      + (p.dob ? "" : '<button class="ghost" id="setdob">הזנת תאריך לידה</button>');
+    const b = $("#setdob"); if (b) b.onclick = ()=> playerSheet(p);
+    $("#impMeas").onclick = pickMeasFile;
+    return;
+  }
+  const last = list[list.length-1];
+  const am = ageMonths(p.dob, last.date);
+  const box = (k)=>{
+    const v = mVal(last,k); if (v===null) return "";
+    const man = MANUAL_PCT[k] ? num(last[MANUAL_PCT[k]]) : null;
+    const auto = (p.dob && METRICS[k].lms) ? percentile(p.sex, METRICS[k].lms, am, v) : null;
+    const pc = (man!==null) ? man : auto;
+    const src = (man!==null) ? " · דיאטנית" : "";
+    return '<div class="stat"><div class="v">'+(k==="bmi"?v.toFixed(1):v)+'</div><div class="l">'+METRICS[k].label
+      +(METRICS[k].unit?" · "+METRICS[k].unit:"")+'</div>'+(pc!==null?'<div class="p">'+pctLabel(pc)+src+'</div>':'')+'</div>';
+  };
+  let html = '<div class="card"><h3>מדידה אחרונה · '+shortDate(last.date)+(last.time?" · "+esc(last.time):"")+'</h3><div class="stats">'
+    + box("h") + box("w") + (mVal(last,"fat")!==null ? box("fat") : box("bmi")) + '</div>';
+  if (last.waist || last.arm || last.thigh)
+    html += '<div class="stats" style="margin-top:12px">' + box("waist") + box("arm") + box("thigh") + '</div>';
+  const vel = growthRate(list);
+  if (vel) html += '<div class="note" style="margin-top:12px">קצב גדילה: '+vel.toFixed(1)+' ס״מ בשנה</div>';
+  html += '</div>';
+  if (!p.dob) html += '<button class="ghost" id="setdob" style="margin-bottom:10px">הזנת תאריך לידה להצגת אחוזונים</button>';
+
+  html += '<div class="segs">' + Object.keys(METRICS).map(k=>
+      '<button class="seg'+(k===growMetric?" on":"")+'" data-m="'+k+'">'+METRICS[k].label+'</button>').join("") + '</div>';
+  html += '<div class="card">'+growthChart(growMetric, list)+'</div>';
+  html += '<div class="card"><h3>כל המדידות</h3>' + list.slice().reverse().map(m=>{
+      const a = ageMonths(p.dob, m.date);
+      const pc = (p.dob) ? percentile(p.sex,"h",a,m.height) : null;
+      const man = num(m.hPct);
+      const show = (man!==null) ? man : pc;
+      return '<button class="listrow" data-id="'+m.id+'"><div class="main"><div class="t1">'
+        + (m.height?m.height+" ס״מ":"") + (m.height&&m.weight?" · ":"") + (m.weight?m.weight+" ק״ג":"")
+        + (m.fat?" · "+m.fat+"% שומן":"") + '</div><div class="t2">'+shortDate(m.date)
+        + (m.time?" · "+esc(m.time):"") + (p.dob?" · גיל "+(a/12).toFixed(1):"")+'</div></div>'
+        + (show!==null&&show!==undefined?'<div class="badge">'+show+'<small>גובה</small></div>':'') + '</button>';
+    }).join("") + '</div>';
+  view.innerHTML = html;
+  const sd = document.getElementById("setdob"); if (sd) sd.onclick = ()=> playerSheet(p);
+  view.querySelectorAll("[data-m]").forEach(b=> b.onclick = ()=>{ growMetric = b.dataset.m; render(); });
+  view.querySelectorAll("[data-id]").forEach(b=> b.onclick = ()=> measureSheet(data.measurements.find(m=>m.id===b.dataset.id)));
+}
+function growthRate(list){
+  if (list.length<2) return null;
+  const b = list[list.length-1], a = list.find(x=> x.height && (parseKey(b.date)-parseKey(x.date))/864e5 >= 120);
+  if (!a || !b.height || !a.height) return null;
+  const yrs = (parseKey(b.date)-parseKey(a.date))/864e5/365.25;
+  return (b.height-a.height)/yrs;
+}
+function growthChart(k, list){
+  const p = P(), W = 320, H = 210, ml = 30, mr = 8, mt = 10, mb = 22;
+  const pts = list.map(m=>({ x: p.dob ? ageMonths(p.dob,m.date)/12 : (parseKey(m.date)-parseKey(list[0].date))/864e5/365.25,
+                             y: mVal(m,k), d:m.date })).filter(o=>o.y!==null);
+  if (!pts.length) return '<div class="blank">אין נתונים למדד הזה</div>';
+  const useLms = !!(p.dob && METRICS[k].lms);
+  let x0 = Math.min.apply(null, pts.map(o=>o.x)), x1 = Math.max.apply(null, pts.map(o=>o.x));
+  if (x1-x0 < 1.5){ const c=(x0+x1)/2; x0=c-0.9; x1=c+0.9; } else { x0-=0.25; x1+=0.4; }
+  let ys = pts.map(o=>o.y), y0 = Math.min.apply(null,ys), y1 = Math.max.apply(null,ys);
+  const bands = [3,15,50,85,97], curves = {};
+  if (useLms){
+    bands.forEach(b=>{
+      const arr = [];
+      for (let x=x0; x<=x1+0.001; x+=(x1-x0)/40){
+        const v = valueAtPct(p.sex, METRICS[k].lms, x*12, b);
+        if (v) arr.push([x,v]);
+      }
+      curves[b] = arr;
+      arr.forEach(a=>{ y0=Math.min(y0,a[1]); y1=Math.max(y1,a[1]); });
+    });
+  }
+  const pad = (y1-y0)*0.08 || 1; y0-=pad; y1+=pad;
+  const sx = x => ml + (x-x0)/(x1-x0)*(W-ml-mr);
+  const sy = y => mt + (1-(y-y0)/(y1-y0))*(H-mt-mb);
+  let g = '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="גרף '+METRICS[k].label+'">';
+  for (let i=0;i<=3;i++){
+    const y = y0+(y1-y0)*i/3;
+    g += '<line x1="'+ml+'" y1="'+sy(y).toFixed(1)+'" x2="'+(W-mr)+'" y2="'+sy(y).toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>'
+      +  '<text x="'+(W-mr)+'" y="'+(sy(y)-3).toFixed(1)+'" font-size="9" fill="var(--muted)" text-anchor="end">'+(y>=100?Math.round(y):y.toFixed(1))+'</text>';
+  }
+  const xt0 = Math.ceil(x0);
+  for (let x=xt0; x<=x1; x++){
+    g += '<text x="'+sx(x).toFixed(1)+'" y="'+(H-6)+'" font-size="9" fill="var(--muted)" text-anchor="middle">'+x+'</text>';
+  }
+  if (useLms) bands.forEach(b=>{
+    const d = curves[b].map((a,i)=>(i?"L":"M")+sx(a[0]).toFixed(1)+","+sy(a[1]).toFixed(1)).join(" ");
+    g += '<path d="'+d+'" fill="none" stroke="var(--muted)" stroke-width="'+(b===50?1.3:0.8)+'" opacity="'+(b===50?0.55:0.3)+'" '+(b===50?'':'stroke-dasharray="3 3"')+'/>';
+    const lastP = curves[b][curves[b].length-1];
+    g += '<text x="'+(sx(lastP[0])-2).toFixed(1)+'" y="'+(sy(lastP[1])-2).toFixed(1)+'" font-size="8" fill="var(--muted)" text-anchor="end">'+b+'</text>';
+  });
+  const dd = pts.map((o,i)=>(i?"L":"M")+sx(o.x).toFixed(1)+","+sy(o.y).toFixed(1)).join(" ");
+  g += '<path d="'+dd+'" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/>';
+  pts.forEach(o=> g += '<circle cx="'+sx(o.x).toFixed(1)+'" cy="'+sy(o.y).toFixed(1)+'" r="3.4" fill="var(--accent)"/>');
+  g += '<text x="'+ml+'" y="'+(H-6)+'" font-size="9" fill="var(--muted)">'+(p.dob?"גיל בשנים":"שנים מאז המדידה הראשונה")+'</text></svg>';
+  return g;
+}
+function normDate(v){
+  if (!v) return "";
+  const t = String(v).trim();
+  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0");
+  m = t.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})/);
+  if (m){ const y = m[3].length===2 ? "20"+m[3] : m[3]; return y+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0"); }
+  return "";
+}
+function mapMeasurements(raw){
+  const arr = Array.isArray(raw) ? raw : (raw.measurements || raw.data || []);
+  const inM = !!(raw && raw.units && raw.units.height === "m");
+  const pick = (o,keys)=>{ for (let i=0;i<keys.length;i++){ const v = o[keys[i]]; if (v!==undefined && v!==null && v!=="") return v; } return null; };
+  return arr.map(o=>{
+    let h = pick(o,["heightCm","height_cm","height","גובה"]);
+    const hm = pick(o,["heightM","height_m"]);
+    if (h===null && hm!==null) h = Number(hm)*100;
+    else if (h!==null && (inM || Number(h)<3)) h = Number(h)*100;
+    return { date: normDate(pick(o,["date","תאריך"])), time: pick(o,["time","שעה"]) || "",
+      height: h===null ? null : Math.round(Number(h)*10)/10,
+      weight: num(pick(o,["weightKg","weight_kg","weight","משקל"])),
+      fat:    num(pick(o,["fatPct","fat_pct","fat","bodyFat","אחוז שומן"])),
+      waist:  num(pick(o,["navelCm","waistCm","navel","waist","היקף טבור"])),
+      arm:    num(pick(o,["armCm","arm","היקף זרוע"])),
+      thigh:  num(pick(o,["thighCm","thigh","היקף ירך"])),
+      hPct:   num(pick(o,["heightPct","heightPercentile","אחוזון גובה"])),
+      wPct:   num(pick(o,["weightPct","weightPercentile","אחוזון משקל"])) };
+  }).filter(r=>r.date);
+}
+function applyMeasurements(rows){
+  let added = 0, updated = 0;
+  rows.forEach(r=>{
+    const ex = mine("measurements").find(x=> x.date===r.date);
+    if (ex){ Object.assign(ex, r); touch(ex); updated++; }
+    else { data.measurements.push(Object.assign({id:uid("m"), playerId:data.activePlayerId, updatedAt:now(), deleted:false}, r)); added++; }
+  });
+  save(); render();
+  return {added, updated};
+}
+function pickMeasFile(){
+  const i = document.createElement("input");
+  i.type = "file"; i.accept = "application/json,.json"; i.style.display = "none";
+  document.body.appendChild(i);
+  i.onchange = ()=>{ if (i.files[0]) importMeasurements(i.files[0]); setTimeout(()=> i.remove(), 0); };
+  i.click();
+}
+function importMeasurements(file){
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    let raw; try{ raw = JSON.parse(rd.result); }catch(e){ toast("הקובץ לא תקין"); return; }
+    const rows = mapMeasurements(raw);
+    if (!rows.length){ toast("לא נמצאו מדידות בקובץ"); return; }
+    const dates = rows.map(r=>r.date).sort();
+    const dup = rows.filter(r=> mine("measurements").some(x=> x.date===r.date)).length;
+    const miss = rows.filter(r=> !r.thigh).length;
+    openSheet('<h2>ייבוא מדידות</h2>'
+      + '<p class="hint">נמצאו '+rows.length+' מדידות, מ-'+shortDate(dates[0])+' עד '+shortDate(dates[dates.length-1])+'.'
+      + (raw.player?' שם בקובץ: '+esc(raw.player)+'.':'')
+      + (dup?' '+dup+' מהן כבר קיימות באותו תאריך ויתעדכנו.':'')
+      + (miss?' ב-'+miss+' מהן חסר היקף ירך, והשדה יישאר ריק.':'') + '</p>'
+      + '<p class="hint">הן ייכנסו לשחקן הפעיל: '+esc((P().name||"ללא שם"))+'</p>'
+      + '<button class="primary" id="go">ייבוא</button>');
+    $("#go").onclick = ()=>{
+      const r = applyMeasurements(rows); closeSheet();
+      toast("נוספו "+r.added+" מדידות"+(r.updated?", עודכנו "+r.updated:""));
+      tab = "grow"; render();
+    };
+  };
+  rd.readAsText(file);
+}
+function measureSheet(m){
+  const isNew = !m;
+  const v = m || {date:key(new Date()), time:"", height:"", weight:"", fat:"", waist:"", arm:"", thigh:"", hPct:"", wPct:""};
+  const fld = (id,label,val)=> '<div class="field num"><label>'+label+'</label><input id="'+id+'" inputmode="decimal" value="'+esc(val==null?"":val)+'"></div>';
+  openSheet('<h2>'+(isNew?"מדידה חדשה":"עריכת מדידה")+'</h2>'
+    + '<div class="grid2">'
+    + '<div class="field"><label>תאריך</label><input type="date" id="md" value="'+esc(v.date)+'"></div>'
+    + '<div class="field"><label>שעה</label><input type="time" id="mt" value="'+esc(v.time||"")+'"></div>'
+    + '</div>'
+    + '<div class="grid3">' + fld("mh","גובה · ס״מ",v.height) + fld("mw","משקל · ק״ג",v.weight) + fld("mf","שומן · %",v.fat) + '</div>'
+    + '<h3>היקפים · ס״מ</h3>'
+    + '<div class="grid3">' + fld("mwa","טבור",v.waist) + fld("mar","זרוע",v.arm) + fld("mth","ירך",v.thigh) + '</div>'
+    + '<h3>אחוזונים מהדיאטנית</h3>'
+    + '<p class="hint">אפשר להשאיר ריק. בלי ערך ידני האפליקציה מחשבת אחוזון בעצמה לפי טבלאות הייחוס, ומציגה אותו.</p>'
+    + '<div class="grid2">' + fld("mhp","אחוזון גובה",v.hPct) + fld("mwp","אחוזון משקל",v.wPct) + '</div>'
+    + '<button class="primary" id="ok" style="margin-top:6px">'+(isNew?"הוספה":"שמירה")+'</button>'
+    + (isNew?'':'<button class="opt danger" id="del" style="margin-top:10px"><span class="em">🗑</span>מחיקת המדידה</button>'));
+  $("#ok").onclick = ()=>{
+    const rec = { date: $("#md").value || key(new Date()), time: $("#mt").value || "",
+                  height: num($("#mh").value), weight: num($("#mw").value), fat: num($("#mf").value),
+                  waist: num($("#mwa").value), arm: num($("#mar").value), thigh: num($("#mth").value),
+                  hPct: num($("#mhp").value), wPct: num($("#mwp").value) };
+    if (!rec.height && !rec.weight && !rec.fat && !rec.waist && !rec.arm && !rec.thigh){ toast("אין מה לשמור"); return; }
+    if (isNew){
+      data.measurements.push(Object.assign({id:uid("m"), playerId:data.activePlayerId, updatedAt:now(), deleted:false}, rec));
+      save();
+    } else { Object.assign(m, rec); touch(m); }
+    render(); closeSheet(); toast(isNew?"המדידה נוספה":"נשמר");
+  };
+  if (!isNew) $("#del").onclick = ()=>{ softDelete(m); render(); closeSheet(); toast("המדידה נמחקה"); };
+}
+
+/* ---------------- משחקים ---------------- */
+const GS = [["min","דקות"],["pts","נקודות"],["reb","ריבאונדים"],["ast","אסיסטים"],["stl","חטיפות"],["tov","איבודים"]];
+function gameList(){ return mine("games").slice().sort((a,b)=> b.date.localeCompare(a.date)); }
+const eff = g => (g.pts||0)+(g.reb||0)+(g.ast||0)+(g.stl||0)-(g.tov||0);
+function seasonAgg(list){
+  const s = {n:list.length, min:0,pts:0,reb:0,ast:0,stl:0,tov:0,eff:0};
+  list.forEach(g=>{ s.min+=g.min||0; s.pts+=g.pts||0; s.reb+=g.reb||0; s.ast+=g.ast||0; s.stl+=g.stl||0; s.tov+=g.tov||0; s.eff+=eff(g); });
+  return s;
+}
+function renderGames(){
+  $("#prev").classList.add("hid"); $("#next").classList.add("hid"); $("#todayBtn").hidden = true;
+  $("#range").textContent = "משחקים";
+  const list = gameList();
+  const s = seasonAgg(list);
+  $("#sub").textContent = list.length ? list.length+" משחקים · ממוצע "+(s.pts/s.n).toFixed(1)+" נקודות" : "אין עדיין משחקים";
+  $("#cta").textContent = "הוספת משחק"; $("#cta").onclick = ()=> gameSheet();
+
+  if (!list.length){
+    view.innerHTML = '<div class="blank">כאן נרשמים המשחקים.<br>אפשר להזין גם משחקים שכבר היו.</div>';
+    return;
+  }
+  const avg = k => (s[k]/s.n).toFixed(1);
+  const per10 = k => s.min ? (s[k]/s.min*10).toFixed(1) : "—";
+  let html = '<div class="card"><h3>ממוצע למשחק</h3><div class="stats">'
+    + '<div class="stat"><div class="v">'+avg("pts")+'</div><div class="l">נקודות</div></div>'
+    + '<div class="stat"><div class="v">'+avg("reb")+'</div><div class="l">ריבאונדים</div></div>'
+    + '<div class="stat"><div class="v">'+avg("ast")+'</div><div class="l">אסיסטים</div></div>'
+    + '</div><div class="stats" style="margin-top:12px">'
+    + '<div class="stat"><div class="v">'+avg("stl")+'</div><div class="l">חטיפות</div></div>'
+    + '<div class="stat"><div class="v">'+avg("tov")+'</div><div class="l">איבודים</div></div>'
+    + '<div class="stat"><div class="v">'+avg("min")+'</div><div class="l">דקות</div></div>'
+    + '</div></div>';
+  html += '<div class="card"><h3>מדדי יעילות</h3><div class="stats">'
+    + '<div class="stat"><div class="v">'+avg("eff")+'</div><div class="l">יעילות למשחק</div><div class="p">נק׳+רב׳+אס׳+חט׳−איב׳</div></div>'
+    + '<div class="stat"><div class="v">'+per10("eff")+'</div><div class="l">יעילות ל-10 דקות</div></div>'
+    + '<div class="stat"><div class="v">'+(s.tov? (s.ast/s.tov).toFixed(1) : "—")+'</div><div class="l">אסיסט לאיבוד</div></div>'
+    + '</div></div>';
+  html += '<div class="segs">' + [["pts","נקודות"],["eff","יעילות"],["reb","ריבאונדים"],["ast","אסיסטים"],["min","דקות"]]
+      .map(([k,l])=>'<button class="seg'+(k===gameMetric?" on":"")+'" data-g="'+k+'">'+l+'</button>').join("") + '</div>';
+  html += '<div class="card">'+gamesChart(gameMetric, list.slice().reverse())+'</div>';
+  html += '<div class="card"><h3>כל המשחקים</h3>' + list.map(g=>
+      '<button class="listrow" data-id="'+g.id+'"><div class="main"><div class="t1">'
+      + (g.home?"בית · ":"חוץ · ") + esc(g.opponent||"יריבה לא רשומה") + '</div><div class="t2">'
+      + shortDate(g.date) + (g.venue?" · "+esc(g.venue):"") + ' · ' + (g.min||0) + ' דק׳ · '
+      + (g.reb||0)+' רב׳ · '+(g.ast||0)+' אס׳ · '+(g.stl||0)+' חט׳ · '+(g.tov||0)+' איב׳</div></div>'
+      + '<div class="badge">'+(g.pts||0)+'<small>נק׳ · יע׳ '+eff(g)+'</small></div></button>').join("") + '</div>';
+  html += '<button class="ghost" id="shareSeason">דוח משחקים לשיתוף</button>';
+  view.innerHTML = html;
+  view.querySelectorAll("[data-g]").forEach(b=> b.onclick = ()=>{ gameMetric = b.dataset.g; render(); });
+  view.querySelectorAll("[data-id]").forEach(b=> b.onclick = ()=> gameSheet(data.games.find(g=>g.id===b.dataset.id)));
+  $("#shareSeason").onclick = gamesReportSheet;
+}
+function gamesChart(k, list){
+  const W=320,H=170,ml=26,mr=8,mt=10,mb=26, n=list.length;
+  const vals = list.map(g=> k==="eff" ? eff(g) : (g[k]||0));
+  const max = Math.max.apply(null, vals.concat([1]));
+  const min = Math.min.apply(null, vals.concat([0]));
+  const bw = Math.max(3, Math.min(28, (W-ml-mr)/n - 4));
+  const sy = v => mt + (1-(v-min)/((max-min)||1))*(H-mt-mb);
+  let g = '<svg class="chart" viewBox="0 0 '+W+' '+H+'">';
+  g += '<line x1="'+ml+'" y1="'+sy(Math.max(0,min)).toFixed(1)+'" x2="'+(W-mr)+'" y2="'+sy(Math.max(0,min)).toFixed(1)+'" stroke="var(--line)"/>';
+  g += '<text x="'+(W-mr)+'" y="'+(mt+8)+'" font-size="9" fill="var(--muted)" text-anchor="end">'+max+'</text>';
+  list.forEach((game,i)=>{
+    const cx = ml + (i+0.5)*((W-ml-mr)/n);
+    const v = vals[i], y = sy(v), y0 = sy(Math.max(0,min));
+    g += '<rect x="'+(cx-bw/2).toFixed(1)+'" y="'+Math.min(y,y0).toFixed(1)+'" width="'+bw.toFixed(1)
+       + '" height="'+Math.max(1,Math.abs(y0-y)).toFixed(1)+'" rx="3" fill="var(--accent)" opacity="'+(0.55+0.45*(v/max))+'"/>';
+    g += '<text x="'+cx.toFixed(1)+'" y="'+(Math.min(y,y0)-3).toFixed(1)+'" font-size="9" fill="var(--muted)" text-anchor="middle">'+v+'</text>';
+    if (n<=8) g += '<text x="'+cx.toFixed(1)+'" y="'+(H-6)+'" font-size="8" fill="var(--muted)" text-anchor="middle">'+esc((game.opponent||"").slice(0,6))+'</text>';
+  });
+  if (n>8) g += '<text x="'+ml+'" y="'+(H-6)+'" font-size="9" fill="var(--muted)">מהמשחק הישן לחדש</text>';
+  return g+'</svg>';
+}
+function gameSheet(g){
+  const isNew = !g;
+  const v = g || {date:key(new Date()), home:true, venue:"", opponent:"", min:"", pts:"", reb:"", ast:"", stl:"", tov:""};
+  openSheet('<h2>'+(isNew?"משחק חדש":"עריכת משחק")+'</h2>'
+    + '<div class="grid2">'
+    + '<div class="field"><label>תאריך</label><input type="date" id="gd" value="'+esc(v.date)+'"></div>'
+    + '<div class="field"><label>בית או חוץ</label><select id="gh"><option value="1"'+(v.home?" selected":"")+'>משחק בית</option><option value="0"'+(v.home?"":" selected")+'>משחק חוץ</option></select></div>'
+    + '</div>'
+    + '<div class="field"><label>קבוצה יריבה</label><input id="go" value="'+esc(v.opponent)+'" placeholder="שם הקבוצה"></div>'
+    + '<div class="field"><label>אולם או מקום</label><input id="gv" value="'+esc(v.venue)+'" placeholder="לא חובה"></div>'
+    + '<h3>נתוני המשחק</h3><div class="grid3">'
+    + GS.map(([k,l])=>'<div class="field num"><label>'+l+'</label><input id="g_'+k+'" inputmode="numeric" value="'+esc(v[k])+'"></div>').join("")
+    + '</div>'
+    + '<button class="primary" id="ok">'+(isNew?"הוספה":"שמירה")+'</button>'
+    + (isNew?'':'<button class="opt danger" id="del" style="margin-top:10px"><span class="em">🗑</span>מחיקת המשחק</button>'));
+  $("#ok").onclick = ()=>{
+    const rec = { date:$("#gd").value||key(new Date()), home:$("#gh").value==="1",
+                  opponent:$("#go").value.trim(), venue:$("#gv").value.trim() };
+    GS.forEach(([k])=> rec[k] = num($("#g_"+k).value) || 0);
+    if (isNew){ data.games.push(Object.assign({id:uid("g"), playerId:data.activePlayerId, updatedAt:now(), deleted:false}, rec)); save(); }
+    else { Object.assign(g, rec); touch(g); }
+    render(); closeSheet(); toast(isNew?"המשחק נוסף":"נשמר");
+  };
+  if (!isNew) $("#del").onclick = ()=>{ softDelete(g); render(); closeSheet(); toast("המשחק נמחק"); };
+}
+const SCOPES = [["last","המשחק האחרון"],["30","30 הימים האחרונים"],["all","כל העונה"]];
+function scopeGames(scope){
+  const list = gameList();
+  if (scope==="last") return list.slice(0,1);
+  if (scope==="30"){ const lim = key(addDays(new Date(),-30)); return list.filter(g=> g.date>=lim); }
+  return list;
+}
+function buildGamesReport(list){
+  const nm = (P().name||"").trim();
+  if (!list.length) return RLM+"אין משחקים בטווח שנבחר";
+  const s = seasonAgg(list), L = [];
+  const dates = list.map(g=>g.date).sort();
+  L.push("דוח משחקים");
+  L.push((nm?nm+" | ":"") + (list.length===1 ? shortDate(dates[0])
+        : list.length+" משחקים · "+shortDate(dates[0])+" – "+shortDate(dates[dates.length-1])));
+  L.push("");
+  list.slice().reverse().forEach(g=>{
+    L.push((g.home?"בית":"חוץ")+" מול "+(g.opponent||"יריבה")+" · "+shortDate(g.date));
+    L.push("נקודות "+(g.pts||0)+" · ריבאונדים "+(g.reb||0)+" · אסיסטים "+(g.ast||0)
+      +" · חטיפות "+(g.stl||0)+" · איבודים "+(g.tov||0)+" · דקות "+(g.min||0)+" · יעילות "+eff(g));
+    L.push("");
+  });
+  if (list.length>1){
+    L.push("ממוצע למשחק:");
+    L.push("נקודות: "+(s.pts/s.n).toFixed(1));
+    L.push("ריבאונדים: "+(s.reb/s.n).toFixed(1));
+    L.push("אסיסטים: "+(s.ast/s.n).toFixed(1));
+    L.push("חטיפות: "+(s.stl/s.n).toFixed(1));
+    L.push("איבודים: "+(s.tov/s.n).toFixed(1));
+    L.push("דקות: "+(s.min/s.n).toFixed(1));
+    L.push("");
+  }
+  L.push("יעילות למשחק: "+(s.eff/s.n).toFixed(1));
+  if (s.min) L.push("יעילות ל-10 דקות: "+(s.eff/s.min*10).toFixed(1));
+  if (s.tov) L.push("אסיסט לאיבוד: "+(s.ast/s.tov).toFixed(1));
+  return L.map(l=> l?RLM+l:"").join("\n");
+}
+function gamesReportSheet(scope){
+  scope = scope || "all";
+  const text = buildGamesReport(scopeGames(scope)), coach = (P().coachPhone||"").trim();
+  openSheet('<h2>דוח משחקים</h2><p class="hint">נפרד מדוח האימונים השבועי</p>'
+    + '<div class="segs">' + SCOPES.map(([k,l])=>'<button class="seg'+(k===scope?" on":"")+'" data-s="'+k+'">'+l+'</button>').join("") + '</div>'
+    + '<pre class="report" id="rp">'+esc(text)+'</pre>'
+    + (coach?'<button class="primary" id="wa" style="margin-bottom:8px">שליחה למאמן בוואטסאפ</button>':'')
+    + '<button class="opt" id="sh"><span class="em">↗</span>שיתוף</button>'
+    + '<button class="opt" id="cp"><span class="em">⧉</span>העתקת הטקסט</button>');
+  sheet.querySelectorAll("[data-s]").forEach(b=> b.onclick = ()=> gamesReportSheet(b.dataset.s));
+  if (coach) $("#wa").onclick = ()=>{ window.open("https://wa.me/"+normPhone(coach)+"?text="+encodeURIComponent(text),"_blank"); closeSheet(); };
+  $("#sh").onclick = async ()=>{ try{ await navigator.share({text:text}); closeSheet(); }catch(e){ copy(text); } };
+  $("#cp").onclick = ()=> copy(text);
+}
+
+/* ============================================================
+   5. דוח שבועי ושיתוף
+   ============================================================ */
+function buildReport(){
+  const s = startOfWeek(cursor), L = [], nm = (P().name||"").trim();
+  L.push("דוח אימונים שבועי");
+  L.push((nm?nm+" | ":"")+rangeLabel(s));
+  L.push("");
+  let total = 0; const byType = {}; const missed = [];
+  for (let i=0;i<7;i++){
+    const k = key(addDays(s,i)), list = entriesOf(k);
+    total += list.length;
+    const parts = groupEntries(list).map(g=>{
+      const t = typeById(g.typeId), tn = t?t.name:"אימון";
+      g.entries.forEach(()=> byType[tn] = (byType[tn]||0)+1);
+      const note = g.entries.map(e=>e.note).filter(Boolean).join(", ");
+      return tn + (g.entries.length>1?" ×"+g.entries.length:"") + (note?" ("+note+")":"");
+    });
+    L.push(DAYS[i]+": "+(parts.length?parts.join(", "):"ללא אימון"));
+    if (P().templateOn){
+      const done = list.map(e=>e.typeId);
+      (P().template[i]||[]).forEach(id=>{ if (!done.includes(id) && typeById(id)) missed.push(DAYS[i]+": "+typeById(id).name); });
+    }
+  }
+  L.push(""); L.push("סה״כ השבוע: "+total+(total===1?" אימון":" אימונים"));
+  const ks = Object.keys(byType);
+  if (ks.length){ L.push(""); L.push("סיכום לפי סוג:"); ks.forEach(k2=> L.push(k2+": "+byType[k2])); }
+  if (missed.length){ L.push(""); L.push("תוכנן ולא בוצע:"); missed.forEach(m=> L.push(m)); }
+  return L.map(l=> l?RLM+l:"").join("\n");
+}
+function reportSheet(){
+  const text = buildReport(), coach = (P().coachPhone||"").trim();
+  openSheet('<h2>דוח אימונים שבועי</h2><p class="hint">אימונים בלבד. נתוני משחקים נשלחים בדוח נפרד מלשונית המשחקים.</p>'
+    + '<pre class="report" id="rp">'+esc(text)+'</pre>'
+    + '<div class="field"><input id="cm" placeholder="הערה למאמן (לא חובה)"></div>'
+    + (coach?'<button class="primary" id="wa" style="margin-bottom:8px">שליחה למאמן בוואטסאפ</button>':'')
+    + '<button class="opt" id="sh"><span class="em">↗</span>שיתוף</button>'
+    + '<button class="opt" id="cp"><span class="em">⧉</span>העתקת הטקסט</button>');
+  const full = ()=>{ const c = $("#cm").value.trim(); return text + (c?"\n\n"+RLM+"הערה: "+c:""); };
+  $("#cm").oninput = ()=> $("#rp").textContent = full();
+  if (coach) $("#wa").onclick = ()=>{ window.open("https://wa.me/"+normPhone(coach)+"?text="+encodeURIComponent(full()),"_blank"); afterSend(); };
+  $("#sh").onclick = async ()=>{ try{ await navigator.share({text:full()}); afterSend(); }catch(e){ copy(full()); } };
+  $("#cp").onclick = ()=> copy(full());
+}
+async function shareText(t, title){
+  try{ await navigator.share({text:t, title:title}); }
+  catch(e){
+    openSheet('<h2>'+esc(title)+'</h2><pre class="report" id="rp">'+esc(t)+'</pre><button class="primary" id="cp">העתקת הטקסט</button>');
+    $("#cp").onclick = ()=> copy(t);
+  }
+}
+function normPhone(p){ let d = String(p).replace(/\D/g,""); if (d.startsWith("0")) d = "972"+d.slice(1); return d; }
+async function copy(t){
+  try{ await navigator.clipboard.writeText(t); toast("הטקסט הועתק"); afterSend(); }
+  catch(e){
+    const r = $("#rp");
+    if (r){ const sel = window.getSelection(), rg = document.createRange(); rg.selectNodeContents(r); sel.removeAllRanges(); sel.addRange(rg); }
+    toast("סמן והעתק ידנית");
+  }
+}
+function afterSend(){
+  if (user && space){ closeSheet(); return; }   // הנתונים כבר בענן
+  const last = data.settings.lastBackupAt ? new Date(data.settings.lastBackupAt) : null;
+  const days = last ? (Date.now()-last.getTime())/864e5 : 999;
+  if (days>28 && live("entries").length) setTimeout(backupPrompt, 700); else closeSheet();
+}
+function backupPrompt(){
+  openSheet('<h2>רגע לפני שסוגרים</h2><p class="hint">שלח גיבוי להורים, כדי שהיסטוריית האימונים, המדידות והמשחקים לא תלך לאיבוד.</p>'
+    + '<button class="primary" id="bk" style="margin-bottom:10px">שלח גיבוי להורים</button>'
+    + '<button class="opt" id="later">בפעם אחרת</button>');
+  $("#bk").onclick = exportBackup; $("#later").onclick = closeSheet;
+}
+
+/* ============================================================
+   6. חשבון, ריבוי משתמשים וסנכרון (Firebase)
+
+   כל משתמש שנכנס מקבל "מרחב" משלו: שחקנים, אימונים, מדידות
+   ומשחקים ששייכים רק לו. אפשר לצרף אנשים נוספים לאותו מרחב
+   לפי כתובת מייל, וכך שני מכשירים עובדים על אותם נתונים.
+   כל רשומה נושאת updatedAt, ולכן עריכה מקבילה לא מוחקת מידע:
+   הגרסה המאוחרת מנצחת.
+   ============================================================ */
+
+/* ---------- מיזוג מסמך שלם (גם לשחזור מקובץ) ---------- */
+function mergeDoc(remote){
+  if (!remote || typeof remote !== "object") return 0;
+  let changed = 0;
+  COLS.forEach(c=>{
+    if (!Array.isArray(remote[c])) return;
+    const idx = {}; data[c].forEach(r=> idx[r.id] = r);
+    remote[c].forEach(r=>{
+      const cur = idx[r.id];
+      if (!cur){ data[c].push(r); changed++; }
+      else if ((r.updatedAt||"") > (cur.updatedAt||"")){ Object.assign(cur, r); changed++; }
+    });
+  });
+  if (remote.settings && (remote.settings.updatedAt||"") > (data.settings.updatedAt||"")){
+    data.settings = Object.assign({}, remote.settings);
+    delete data.settings.sync;
+    changed++;
+  }
+  if (changed){ Store.set(KEY, data); queuePush(); }
+  return changed;
+}
+
+/* ---------- מה כבר נשלח לשרת ---------- */
+function loadPushed(){
+  try{ pushed = JSON.parse(localStorage.getItem(PUSHKEY+":"+(space?space.id:"")) || "{}"); }catch(e){ pushed = {}; }
+}
+function savePushed(){
+  try{ localStorage.setItem(PUSHKEY+":"+(space?space.id:""), JSON.stringify(pushed)); }catch(e){}
+}
+
+function cleanSettings(){
+  const o = Object.assign({}, data.settings);
+  delete o.sync;
+  return o;
+}
+
+function queuePush(){ clearTimeout(pushTimer); pushTimer = setTimeout(cloudPush, 1200); }
+
+function cloudPush(){
+  if (!WANTS_CLOUD || !cloud.api || !user || !space || pushing) return;
+  const out = {}; let n = 0;
+  COLS.forEach(c=>{
+    const list = data[c].filter(r=> pushed[r.id] !== (r.updatedAt||""));
+    if (list.length){ out[c] = list; n += list.length; }
+  });
+  const setDirty = (data.settings.updatedAt||"") !== pushed.__settings;
+  if (!n && !setDirty) return;
+  pushing = true;
+  cloud.api.push(out, setDirty ? cleanSettings() : null).then(()=>{
+    COLS.forEach(c=> (out[c]||[]).forEach(r=> pushed[r.id] = r.updatedAt||""));
+    if (setDirty) pushed.__settings = data.settings.updatedAt||"";
+    savePushed();
+  }).catch(()=>{}).then(()=>{ pushing = false; });
+}
+
+/* ---------- החלפת מרחב: הנתונים המקומיים לא נוסעים איתנו ---------- */
+function wipeLocal(){
+  COLS.forEach(c=> data[c] = []);
+  data.activePlayerId = null;
+  data.settings = {parentPhone:"", deviceName:data.settings.deviceName||"", lastBackupAt:null,
+                   updatedAt:new Date(0).toISOString()};
+  Store.set(KEY, data);
+}
+
+/* ---------- מה שהמודול של Firebase מדווח בחזרה ---------- */
+let gateMsg = "", gateOk = false, gateWait = null;
+
+cloud.onUser = function(u){
+  clearTimeout(gateWait);
+  authKnown = true; busy = false; gateMsg = ""; gateOk = false;
+  user = u;
+  if (!u){ space = null; pushed = {}; }
+  paintGate(); render();
+};
+cloud.onHome = function(id){ homeSpaceId = id; };
+cloud.onSpace = function(sp){
+  const known = localStorage.getItem(SPACEKEY);
+  if (sp.id !== known){
+    if (known) wipeLocal();          // עברנו למרחב אחר, מתחילים נקי
+    try{ localStorage.setItem(SPACEKEY, sp.id); }catch(e){}
+    pushed = {}; savePushed();
+  }
+  space = sp;
+  if (!Object.keys(pushed).length) loadPushed();
+  paintGate(); render();
+  setTimeout(cloudPush, 600);
+};
+cloud.onRecords = function(col, list){
+  if (COLS.indexOf(col) < 0) return;
+  let changed = 0;
+  const idx = {}; data[col].forEach(r=> idx[r.id] = r);
+  list.forEach(r=>{
+    pushed[r.id] = r.updatedAt||"";
+    const cur = idx[r.id];
+    if (!cur){ data[col].push(r); changed++; }
+    else if ((r.updatedAt||"") > (cur.updatedAt||"")){ Object.assign(cur, r); changed++; }
+  });
+  if (col==="players" && !data.activePlayerId){
+    const first = data.players.find(x=>!x.deleted);
+    if (first){ data.activePlayerId = first.id; changed++; }
+  }
+  if (changed){ Store.set(KEY, data); render(); }
+  savePushed();
+};
+cloud.onSettings = function(o){
+  if (!o) return;
+  if ((o.updatedAt||"") > (data.settings.updatedAt||"")){
+    data.settings = Object.assign({}, o);
+    pushed.__settings = o.updatedAt||"";
+    Store.set(KEY, data); savePushed(); render();
+  }
+};
+cloud.onProblem = function(msg){ busy = false; gateMsg = msg; gateOk = false; if (user) toast(msg); paintGate(); };
+cloud.onNotice  = function(msg){ busy = false; gateMsg = msg; gateOk = true;  if (user) toast(msg); paintGate(); };
+cloud.onDown    = function(){ cloudDown = true; authKnown = true; busy = false; paintGate(); render(); };
+
+/* ---------- מסך הכניסה ---------- */
+function paintGate(){
+  const g = document.getElementById("gate");
+  const locked = WANTS_CLOUD && !cloudDown && (!authKnown || !user);
+  document.body.classList.toggle("locked", locked);
+  g.hidden = !locked;
+  if (!locked) return;
+  const box = document.getElementById("gbox");
+  if (!authKnown){
+    box.innerHTML = '<div class="gmark">🏀</div><h1>יומן אימונים</h1><p class="gwait">רגע, בודק אם כבר נכנסת…</p>';
+    return;
+  }
+  const up = authMode === "up";
+  box.innerHTML = '<div class="gmark">🏀</div>'
+    + '<h1>' + (up ? "פתיחת חשבון" : "יומן אימונים") + '</h1>'
+    + '<p class="glede">האימונים, המדידות והמשחקים נשמרים בחשבון שלך, ונפתחים בכל מכשיר שתיכנס ממנו. '
+    + 'לכל משתמש יש נתונים נפרדים.</p>'
+    + '<button class="gbtn" id="gGoogle"' + (busy?" disabled":"") + '><span class="g">G</span>כניסה עם Google</button>'
+    + '<div class="gor">או עם מייל וסיסמה</div>'
+    + '<div class="field"><label>מייל</label><input id="gEmail" type="email" inputmode="email" autocapitalize="off" autocomplete="username"></div>'
+    + '<div class="field"><label>סיסמה</label><input id="gPass" type="password" autocomplete="' + (up?"new-password":"current-password") + '"></div>'
+    + '<button class="primary" id="gGo"' + (busy?" disabled":"") + '>' + (busy?"רגע…":(up?"פתיחת חשבון":"כניסה")) + '</button>'
+    + '<div class="glinks"><button class="glink" id="gMode">' + (up?"כבר יש לי חשבון":"אין לי חשבון עדיין") + '</button>'
+    + (up?"":'<button class="glink" id="gReset">שכחתי סיסמה</button>') + '</div>'
+    + '<p class="gmsg' + (gateOk?" ok":"") + '">' + esc(gateMsg) + '</p>';
+
+  const em = ()=> (document.getElementById("gEmail").value||"").trim();
+  const pw = ()=> document.getElementById("gPass").value||"";
+  document.getElementById("gGoogle").onclick = ()=>{
+    if (!cloud.api){ gateMsg = "החיבור לשרת עוד לא נטען. נסה שוב עוד רגע."; paintGate(); return; }
+    busy = true; gateMsg = ""; paintGate(); cloud.api.google();
+    clearTimeout(gateWait);
+    gateWait = setTimeout(()=>{
+      if (!user){ busy = false; gateOk = false;
+        gateMsg = "הכניסה עם Google לא חזרה. אפשר לנסות שוב, או להיכנס עם מייל וסיסמה."; paintGate(); }
+    }, 30000);
+  };
+  document.getElementById("gGo").onclick = ()=>{
+    if (!cloud.api){ gateMsg = "החיבור לשרת עוד לא נטען. נסה שוב עוד רגע."; paintGate(); return; }
+    if (!em()){ gateMsg = "צריך למלא מייל."; gateOk = false; paintGate(); return; }
+    if (!pw()){ gateMsg = "צריך למלא סיסמה."; gateOk = false; paintGate(); return; }
+    busy = true; gateMsg = ""; const e = em(), q = pw(); paintGate();
+    if (up) cloud.api.signUp(e, q); else cloud.api.signIn(e, q);
+  };
+  document.getElementById("gMode").onclick = ()=>{ authMode = up ? "in" : "up"; gateMsg = ""; paintGate(); };
+  const rs = document.getElementById("gReset");
+  if (rs) rs.onclick = ()=>{
+    if (!em()){ gateMsg = "מלא קודם את המייל, ואשלח אליו קישור."; gateOk = false; paintGate(); return; }
+    cloud.api && cloud.api.reset(em());
+  };
+}
+
+/* ---------- מסך החשבון בהגדרות ---------- */
+function accountSheet(){
+  if (!WANTS_CLOUD){
+    openSheet('<h2>חשבון וסנכרון</h2><p class="hint">האפליקציה עובדת כרגע מקומית: הנתונים נשמרים במכשיר הזה בלבד, '
+      + 'והמעבר בין מכשירים נעשה בקובץ גיבוי.</p><p class="hint">כדי להפעיל כניסה עם Google וסנכרון אוטומטי, '
+      + 'ממלאים את בלוק ההגדרות של Firebase בראש קובץ ה HTML. ההוראות המלאות נמצאות בקובץ README שבמאגר.</p>');
+    return;
+  }
+  if (cloudDown){
+    openSheet('<h2>חשבון וסנכרון</h2><p class="hint">לא הצלחתי להתחבר לשרת. האפליקציה ממשיכה לעבוד מקומית, '
+      + 'והנתונים יעלו ברגע שהחיבור יחזור.</p><button class="primary" id="rl">נסה שוב</button>');
+    $("#rl").onclick = ()=> location.reload();
+    return;
+  }
+  const owner = space && user && space.ownerUid === user.uid;
+  const members = (space && space.memberEmails || []).filter(e=> e !== (space.ownerEmail||""));
+  let html = '<h2>חשבון וסנכרון</h2>'
+    + '<p class="hint">מחובר כ: ' + esc(user ? (user.email||user.name||"") : "") + '</p>';
+
+  if (space){
+    html += '<h3>מרחב הנתונים</h3>'
+      + '<div class="field"><label>' + (owner ? "הקוד שלך" : "הקוד של " + esc(space.ownerEmail||"")) + '</label>'
+      + '<input id="sid" value="' + esc(space.id) + '" readonly></div>'
+      + '<p class="hint">' + (owner
+          ? 'כדי שמישהו נוסף יראה ויערוך את אותם נתונים: מוסיפים כאן את המייל שלו, ואז הוא מזין את הקוד הזה אצלו תחת מעבר למרחב אחר.'
+          : 'אתה עובד על המרחב של מישהו אחר. כל מה שתזין כאן ייראה גם אצלו.') + '</p>';
+    if (owner){
+      html += '<h3>אנשים במרחב</h3>';
+      if (!members.length) html += '<p class="hint">רק אתה. אין עדיין אף אחד נוסף.</p>';
+      members.forEach(e=> html += '<button class="opt" data-rm="' + esc(e) + '"><span class="em">👤</span>'
+        + esc(e) + '<span class="tail">הסר</span></button>');
+      html += '<div class="field"><label>הוספת מייל</label><input id="addm" type="email" inputmode="email" autocapitalize="off" placeholder="michael@gmail.com"></div>'
+        + '<button class="ghost" id="addb" style="margin-bottom:14px">הוספה למרחב</button>';
+    }
+    html += '<h3>מעבר למרחב אחר</h3>'
+      + '<div class="field"><label>קוד מרחב</label><input id="join" autocapitalize="off" placeholder="למשל: k7m2qp"></div>'
+      + '<p class="hint">הנתונים שבמכשיר הזה יוחלפו בנתונים של אותו מרחב. קודם צריך שבעל המרחב יוסיף את המייל שלך.</p>'
+      + '<button class="ghost" id="joinb" style="margin-bottom:14px">מעבר</button>';
+    if (homeSpaceId && homeSpaceId !== space.id)
+      html += '<button class="ghost" id="homeb" style="margin-bottom:14px">חזרה למרחב שלי</button>';
+  }
+  html += '<h3>יציאה</h3><button class="opt danger" id="out"><span class="em">⇤</span>יציאה מהחשבון</button>';
+  openSheet(html);
+
+  sheet.querySelectorAll("[data-rm]").forEach(b=> b.onclick = ()=>{
+    cloud.api.removeMember(b.dataset.rm).then(()=> toast("הוסר")).catch(()=> toast("לא הצלחתי להסיר"));
+    closeSheet();
+  });
+  const ab = $("#addb");
+  if (ab) ab.onclick = ()=>{
+    const e = ($("#addm").value||"").trim().toLowerCase();
+    if (!e || e.indexOf("@")<0){ toast("צריך כתובת מייל תקינה"); return; }
+    cloud.api.addMember(e).then(()=>{ toast("נוסף. עכשיו הוא צריך להזין את הקוד"); closeSheet(); })
+      .catch(()=> toast("לא הצלחתי להוסיף"));
+  };
+  const jb = $("#joinb");
+  if (jb) jb.onclick = ()=>{
+    const c = ($("#join").value||"").trim().toLowerCase();
+    if (!c){ toast("צריך להזין קוד"); return; }
+    if (space && c === space.id){ toast("זה כבר המרחב הנוכחי"); return; }
+    cloud.api.joinSpace(c).then(()=>{ closeSheet(); toast("עברת למרחב " + c); })
+      .catch(()=> toast("הקוד לא מתאים, או שהמייל שלך עוד לא נוסף למרחב"));
+  };
+  const hb = $("#homeb");
+  if (hb) hb.onclick = ()=>{
+    cloud.api.joinSpace(homeSpaceId).then(()=>{ closeSheet(); toast("חזרת למרחב שלך"); })
+      .catch(()=> toast("לא הצלחתי לחזור"));
+  };
+  $("#out").onclick = ()=>{
+    openSheet('<h2>יציאה מהחשבון</h2><p class="hint">הנתונים נשארים בשרת ויחזרו בכניסה הבאה. '
+      + 'העותק המקומי במכשיר הזה יימחק.</p><button class="opt danger" id="yes"><span class="em">⇤</span>כן, לצאת</button>'
+      + '<button class="opt" id="no"><span class="em">↩︎</span>ביטול</button>');
+    $("#no").onclick = closeSheet;
+    $("#yes").onclick = ()=>{
+      try{ localStorage.removeItem(SPACEKEY); localStorage.removeItem(PUSHKEY+":"+(space?space.id:"")); }catch(e){}
+      data = freshData(); data.players = []; data.types = []; data.activePlayerId = null;
+      Store.set(KEY, data);
+      closeSheet(); cloud.api.signOut();
+    };
+  };
+}
+
+/* ============================================================
+   7. גיבוי ושחזור
+   ============================================================ */
+async function exportBackup(){
+  const json = JSON.stringify(data, null, 2), fname = "training-log-"+key(new Date())+".json";
+  data.settings.lastBackupAt = now(); data.settings.updatedAt = now(); save();
+  try{
+    const file = new File([json], fname, {type:"application/json"});
+    if (navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:"גיבוי יומן אימונים"});
+      toast("הגיבוי נשלח"); closeSheet(); return;
+    }
+  }catch(e){}
+  try{
+    const url = URL.createObjectURL(new Blob([json],{type:"application/json"}));
+    const a = document.createElement("a"); a.href = url; a.download = fname; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    toast("קובץ הגיבוי נשמר"); closeSheet();
+  }catch(e){
+    openSheet('<h2>גיבוי כטקסט</h2><p class="hint">העתק ושלח לעצמך.</p><pre class="report">'+esc(json)+'</pre>');
+  }
+}
+function importBackup(file){
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    let inc; try{ inc = JSON.parse(rd.result); }catch(e){ toast("הקובץ לא תקין"); return; }
+    if (!inc || !Array.isArray(inc.entries)){ toast("הקובץ לא תקין"); return; }
+    openSheet('<h2>שחזור מקובץ</h2><p class="hint">בקובץ יש '+(inc.entries||[]).length+' אימונים, '
+      +(inc.measurements||[]).length+' מדידות ו-'+(inc.games||[]).length+' משחקים.</p>'
+      + '<button class="opt" id="merge"><span class="em">⊕</span>מיזוג עם הנתונים הקיימים</button>'
+      + '<button class="opt danger" id="repl"><span class="em">⟲</span>החלפה מלאה של הנתונים</button>');
+    $("#merge").onclick = ()=>{ const n = mergeDoc(inc); render(); closeSheet(); toast(n?"מוזגו "+n+" רשומות":"הכל כבר היה מעודכן"); };
+    $("#repl").onclick = ()=>{ data = migrate(inc); Store.set(KEY,data); render(); closeSheet(); toast("הנתונים שוחזרו"); };
+  };
+  rd.readAsText(file);
+}
+
+/* ============================================================
+   8. הגדרות
+   ============================================================ */
+function settingsSheet(){
+  const p = P();
+  const last = data.settings.lastBackupAt ? Math.round((Date.now()-new Date(data.settings.lastBackupAt).getTime())/864e5) : null;
+  const hasPlayer = !!p.id;
+  let html = '<h2>הגדרות</h2><h3>שחקן</h3>';
+  live("players").forEach(x=> html += '<button class="opt" data-p="'+x.id+'"><span class="em">'+(x.id===p.id?"●":"○")+'</span>'
+    + esc(x.name||"ללא שם") + '<span class="tail">'+(x.dob?ageText(x.dob):"אין תאריך לידה")+'</span></button>');
+  html += '<button class="opt" id="addPlayer"><span class="em">✚</span>הוספת שחקן</button>';
+  if (!hasPlayer) html += '<p class="hint">עוד אין שחקן במרחב הזה. מתחילים בהוספת שחקן.</p>';
+  if (hasPlayer) html += '<h3>שבוע קבוע</h3>'
+    + '<div class="toggle"><div>אימונים קבועים לסימון מהיר<div class="note">מסמנים ✓ במקום להוסיף מהרשימה</div></div>'
+    + '<button class="switch'+(p.templateOn?" on":"")+'" id="tg"><i></i></button></div>'
+    + '<div id="tpl" '+(p.templateOn?"":"hidden")+'>';
+  for (let i=0;hasPlayer && i<7;i++){
+    html += '<div class="tline"><b>'+DAYS[i]+'</b>'
+      + myTypes().map(t=>'<button class="tpick'+((p.template[i]||[]).includes(t.id)?" on":"")+'" data-d="'+i+'" data-t="'+t.id+'" style="--c:'+t.color+'">'+t.icon+" "+esc(t.name)+'</button>').join("")
+      + '</div>';
+  }
+  if (hasPlayer){
+    html += '</div><h3>סוגי אימון</h3>';
+    myTypes(true).forEach(t=> html += '<button class="opt" data-arch="'+t.id+'"><span class="em">'+t.icon+'</span>'+esc(t.name)
+      + '<span class="tail">'+(t.archived?"בארכיון · החזר":"הסתר")+'</span></button>');
+    html += '<button class="opt" id="addType"><span class="em">✚</span>סוג אימון חדש</button>';
+  }
+  html += ''
+    + '<h3>מדידות</h3>'
+    + '<button class="opt" id="impMeas2"><span class="em">⬇︎</span>ייבוא מדידות מקובץ<span class="tail">JSON</span></button>'
+    + '<h3>חשבון</h3>'
+    + '<button class="opt" id="acct"><span class="em">☁︎</span>חשבון וסנכרון<span class="tail">'
+    + (!WANTS_CLOUD ? "מקומי" : cloudDown ? "אין חיבור" : user ? esc(user.email||"מחובר") : "לא מחובר") + '</span></button>'
+    + '<h3>גיבוי</h3>'
+    + '<p class="hint">'+(last===null?"עדיין לא נשמר גיבוי.":"גיבוי אחרון: לפני "+last+" ימים.")+'</p>'
+    + '<button class="opt" id="exp"><span class="em">⬆︎</span>שמירת גיבוי ושליחה</button>'
+    + '<button class="opt" id="imp"><span class="em">⬇︎</span>שחזור או קליטת עדכון מקובץ</button>'
+    + '<input type="file" id="f" accept="application/json,.json" hidden>'
+    + '<h3>התקנה</h3><p class="hint">באייפון: כפתור השיתוף בסאפארי ← הוסף למסך הבית. חשוב, אחרת הדפדפן עלול למחוק את הנתונים.</p>';
+  openSheet(html);
+  sheet.querySelectorAll("[data-p]").forEach(b=> b.onclick = ()=>{
+    const x = data.players.find(y=>y.id===b.dataset.p);
+    if (x.id===data.activePlayerId) playerSheet(x);
+    else { data.activePlayerId = x.id; save(); render(); closeSheet(); }
+  });
+  $("#addPlayer").onclick = ()=> playerSheet();
+  if ($("#tg")) $("#tg").onclick = ()=>{ p.templateOn = !p.templateOn; $("#tg").classList.toggle("on",p.templateOn); $("#tpl").hidden = !p.templateOn; touch(p); render(); };
+  sheet.querySelectorAll(".tpick").forEach(b=> b.onclick = ()=>{
+    const d = +b.dataset.d, t = b.dataset.t; p.template[d] = p.template[d]||[];
+    const i = p.template[d].indexOf(t);
+    if (i<0) p.template[d].push(t); else p.template[d].splice(i,1);
+    b.classList.toggle("on", i<0); touch(p); render();
+  });
+  sheet.querySelectorAll("[data-arch]").forEach(b=> b.onclick = ()=>{
+    const t = typeById(b.dataset.arch); t.archived = !t.archived; touch(t); render(); settingsSheet();
+  });
+  if ($("#addType")) $("#addType").onclick = ()=> newTypeSheet(()=> settingsSheet());
+  $("#impMeas2").onclick = pickMeasFile;
+  $("#acct").onclick = accountSheet;
+  $("#exp").onclick = exportBackup;
+  $("#imp").onclick = ()=> $("#f").click();
+  $("#f").onchange = ev=>{ if (ev.target.files[0]) importBackup(ev.target.files[0]); };
+}
+function playerSheet(pl){
+  const isNew = !pl;
+  const v = pl || {name:"", dob:"", sex:"b", coachPhone:""};
+  openSheet('<h2>'+(isNew?"שחקן חדש":"פרטי השחקן")+'</h2>'
+    + '<div class="field"><label>שם</label><input id="pn" value="'+esc(v.name)+'"></div>'
+    + '<div class="grid2">'
+    + '<div class="field"><label>תאריך לידה</label><input type="date" id="pd" value="'+esc(v.dob)+'"></div>'
+    + '<div class="field"><label>מין (לחישוב אחוזון)</label><select id="ps"><option value="b"'+(v.sex==="g"?"":" selected")+'>בן</option><option value="g"'+(v.sex==="g"?" selected":"")+'>בת</option></select></div>'
+    + '</div>'
+    + '<div class="field"><label>טלפון המאמן</label><input id="pc" type="tel" value="'+esc(v.coachPhone)+'" placeholder="050-0000000"></div>'
+    + '<div class="field"><label>טלפון הורה לשליחת גיבוי</label><input id="pp" type="tel" value="'+esc(data.settings.parentPhone)+'"></div>'
+    + '<button class="primary" id="ok">שמירה</button>');
+  $("#ok").onclick = ()=>{
+    const rec = { name:$("#pn").value.trim(), dob:$("#pd").value, sex:$("#ps").value, coachPhone:$("#pc").value.trim() };
+    data.settings.parentPhone = $("#pp").value.trim(); data.settings.updatedAt = now();
+    if (isNew){
+      const np = Object.assign({id:uid("p"), color:PALETTE[live("players").length%6],
+        template:{0:[],1:[],2:[],3:[],4:[],5:[],6:[]}, templateOn:false, updatedAt:now(), deleted:false}, rec);
+      data.players.push(np);
+      const src = myTypes();
+      if (src.length) src.forEach(t=> data.types.push(Object.assign({},t,{id:uid("t"), playerId:np.id, updatedAt:now()})));
+      else DEFAULT_TYPES.forEach(d=> data.types.push({id:uid("t"), playerId:np.id, name:d[0], color:d[1], icon:d[2],
+        archived:false, updatedAt:now(), deleted:false}));
+      data.activePlayerId = np.id;
+    } else Object.assign(pl, rec), touch(pl);
+    save(); render(); closeSheet();
+  };
+}
+
+/* ============================================================
+   9. גיליונות משותפים
+   ============================================================ */
+const scrim = $("#scrim"), sheet = $("#sheet");
+function openSheet(html){ sheet.innerHTML = '<div class="grab"></div>'+html; sheet.classList.add("on"); scrim.classList.add("on"); sheet.scrollTop = 0; }
+function closeSheet(){ sheet.classList.remove("on"); scrim.classList.remove("on"); }
+scrim.onclick = closeSheet;
+
+function addSheet(k, dayIndex){
+  const list = myTypes().slice().sort((a,b)=> usageCount(b.id)-usageCount(a.id));
+  let html = '<h2>מה עשית ב'+DAYS[dayIndex]+'?</h2><p class="hint">'+shortDate(k)+'</p>';
+  list.forEach(t=> html += '<button class="opt" data-t="'+t.id+'"><span class="em">'+t.icon+'</span>'+esc(t.name)+'<span class="tail">+</span></button>');
+  html += '<button class="opt" id="newType"><span class="em">✚</span>סוג אימון חדש</button>';
+  openSheet(html);
+  sheet.querySelectorAll("[data-t]").forEach(b=> b.onclick = ()=>{ addEntry(k,b.dataset.t); closeSheet(); toast("נוסף ל"+DAYS[dayIndex]); });
+  $("#newType").onclick = ()=> newTypeSheet(t=>{ addEntry(k,t.id); closeSheet(); });
+}
+function newTypeSheet(after){
+  let color = PALETTE[0], icon = EMOJIS[0];
+  openSheet('<h2>סוג אימון חדש</h2>'
+    + '<div class="field"><label>שם האימון</label><input id="tn" placeholder="למשל: אימון ריצה" autocomplete="off"></div>'
+    + '<label style="font-size:13px;color:var(--muted)">צבע</label><div class="swatches">'
+    + PALETTE.map((c,i)=>'<button class="sw'+(i?"":" sel")+'" data-c="'+c+'" style="background:'+c+'"></button>').join("")
+    + '</div><label style="font-size:13px;color:var(--muted)">אייקון</label><div class="ems">'
+    + EMOJIS.map((e,i)=>'<button class="em-opt'+(i?"":" sel")+'" data-e="'+e+'">'+e+'</button>').join("")
+    + '</div><button class="primary" id="saveType">הוסף סוג אימון</button>');
+  sheet.querySelectorAll(".sw").forEach(b=> b.onclick = ()=>{ sheet.querySelectorAll(".sw").forEach(x=>x.classList.remove("sel")); b.classList.add("sel"); color=b.dataset.c; });
+  sheet.querySelectorAll(".em-opt").forEach(b=> b.onclick = ()=>{ sheet.querySelectorAll(".em-opt").forEach(x=>x.classList.remove("sel")); b.classList.add("sel"); icon=b.dataset.e; });
+  $("#saveType").onclick = ()=>{
+    const name = $("#tn").value.trim(); if (!name){ $("#tn").focus(); return; }
+    const t = {id:uid("t"), playerId:data.activePlayerId, name, color, icon, archived:false, updatedAt:now(), deleted:false};
+    data.types.push(t); save(); render();
+    if (after) after(t); else closeSheet();
+  };
+  setTimeout(()=>{ const el = $("#tn"); if (el) el.focus(); }, 250);
+}
+function entrySheet(entry){
+  const t = typeById(entry.typeId);
+  openSheet('<h2>'+esc(t?t.name:"אימון")+'</h2><p class="hint">'+(entry.note?esc(entry.note):"בלי הערה")+'</p>'
+    + '<button class="opt" id="noteBtn"><span class="em">✎</span>'+(entry.note?"עריכת הערה":"הוספת הערה")+'</button>'
+    + '<button class="opt" id="swapBtn"><span class="em">⇄</span>שינוי סוג האימון</button>'
+    + '<button class="opt danger" id="delBtn"><span class="em">🗑</span>מחיקת האימון</button>');
+  $("#delBtn").onclick = ()=>{ removeEntry(entry); closeSheet(); };
+  $("#noteBtn").onclick = ()=>{
+    openSheet('<h2>הערה לאימון</h2><div class="field"><input id="nt" value="'+esc(entry.note||"")+'" placeholder="למשל: 100 קליעות"></div><button class="primary" id="ok">שמור</button>');
+    setTimeout(()=>{ const el=$("#nt"); if(el) el.focus(); },250);
+    $("#ok").onclick = ()=>{ entry.note = $("#nt").value.trim(); touch(entry); render(); closeSheet(); };
+  };
+  $("#swapBtn").onclick = ()=>{
+    let html = '<h2>שינוי סוג האימון</h2>';
+    myTypes().forEach(x=> html += '<button class="opt" data-t="'+x.id+'"><span class="em">'+x.icon+'</span>'+esc(x.name)+'</button>');
+    openSheet(html);
+    sheet.querySelectorAll("[data-t]").forEach(b=> b.onclick = ()=>{ entry.typeId = b.dataset.t; touch(entry); render(); closeSheet(); });
+  };
+}
+function toast(msg, actionLabel, action){
+  const wrap = $("#toast"); wrap.innerHTML = "";
+  const t = document.createElement("div"); t.className = "t"; t.innerHTML = '<span>'+esc(msg)+'</span>';
+  if (actionLabel){ const b = document.createElement("button"); b.textContent = actionLabel;
+    b.onclick = ()=>{ action && action(); wrap.innerHTML=""; }; t.appendChild(b); }
+  wrap.appendChild(t); requestAnimationFrame(()=> t.classList.add("on"));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ t.classList.remove("on"); setTimeout(()=> wrap.innerHTML = "", 200); }, actionLabel?5000:2200);
+}
+
+/* ============================================================
+   10. ניווט והפעלה
+   ============================================================ */
+$("#prev").onclick = ()=>{ cursor = addDays(startOfWeek(cursor),-7); render(); };
+$("#next").onclick = ()=>{ cursor = addDays(startOfWeek(cursor), 7); render(); };
+$("#todayBtn").onclick = ()=>{ cursor = new Date(); render(); };
+$("#gear").onclick = settingsSheet;
+$("#who").onclick = ()=>{
+  let html = '<h2>מי משחק?</h2>';
+  live("players").forEach(x=> html += '<button class="opt" data-p="'+x.id+'"><span class="em">'+(x.id===data.activePlayerId?"●":"○")+'</span>'+esc(x.name||"ללא שם")+'</button>');
+  openSheet(html);
+  sheet.querySelectorAll("[data-p]").forEach(b=> b.onclick = ()=>{ data.activePlayerId = b.dataset.p; save(); render(); closeSheet(); });
+};
+document.querySelectorAll(".tab").forEach(b=> b.onclick = ()=>{ tab = b.dataset.tab; window.scrollTo(0,0); render(); });
+
+let tx=0, ty=0;
+view.addEventListener("touchstart", e=>{ tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, {passive:true});
+view.addEventListener("touchend", e=>{
+  if (tab!=="train") return;
+  const dx = e.changedTouches[0].clientX-tx, dy = e.changedTouches[0].clientY-ty;
+  if (Math.abs(dx)>70 && Math.abs(dx)>Math.abs(dy)*1.6){ cursor = addDays(startOfWeek(cursor), dx<0?7:-7); render(); }
+}, {passive:true});
+
+let dayMark = key(new Date());
+setInterval(()=>{ const k = key(new Date()); if (k!==dayMark){ dayMark = k; render(); } }, 60000);
+document.addEventListener("visibilitychange", ()=>{ if (!document.hidden){ render(); cloudPush(); } });
+
+(function(){
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180"><rect width="180" height="180" rx="40" fill="#E4571B"/><circle cx="90" cy="92" r="46" fill="none" stroke="#fff" stroke-width="9"/><path d="M90 46v92M44 92h92M58 58c24 18 24 50 0 68M122 58c-24 18-24 50 0 68" fill="none" stroke="#fff" stroke-width="7"/></svg>';
+  const icon = "data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(svg)));
+  const el = document.getElementById("appicon"); if (el) el.href = icon;
+  try{
+    const m = {name:"יומן אימונים", short_name:"אימונים", dir:"rtl", lang:"he", display:"standalone",
+      background_color:"#EEF1F5", theme_color:"#E4571B", start_url:".", icons:[{src:icon, sizes:"180x180", type:"image/svg+xml"}]};
+    const mel = document.getElementById("manifest");
+    if (mel) mel.href = URL.createObjectURL(new Blob([JSON.stringify(m)],{type:"application/manifest+json"}));
+  }catch(e){}
+})();
+
+function migrate(d){
+  if (!d) return freshData();
+  if (!d.players && d.children){ d.players = d.children; delete d.children; }
+  if (d.activeChildId){ d.activePlayerId = d.activeChildId; delete d.activeChildId; }
+  d.players = d.players || []; d.types = d.types || []; d.entries = d.entries || [];
+  d.measurements = d.measurements || []; d.games = d.games || [];
+  d.players.forEach(p=>{ if (!p.template) p.template = {0:[],1:[],2:[],3:[],4:[],5:[],6:[]};
+    if (p.dob===undefined) p.dob=""; if (!p.sex) p.sex="b"; });
+  COLS.forEach(c=> d[c].forEach(r=>{
+    if (r.childId && !r.playerId){ r.playerId = r.childId; delete r.childId; }
+    if (!r.updatedAt) r.updatedAt = r.createdAt || new Date(2026,0,1).toISOString();
+    if (r.deleted===undefined) r.deleted = false;
+  }));
+  d.settings = Object.assign({parentPhone:"",deviceName:"",lastBackupAt:null, updatedAt:now()}, d.settings||{});
+  delete d.settings.sync;
+  if (!d.deviceId) d.deviceId = uid("d");
+  if (!d.activePlayerId && d.players[0]) d.activePlayerId = d.players[0].id;
+  d.schemaVersion = 2;
+  return d;
+}
+(async function init(){
+  let loaded = await Store.get(KEY);
+  if (!loaded){ const old = await Store.get(OLDKEY); if (old) loaded = old; }
+  if (loaded) data = migrate(loaded);
+  loadPushed();
+  paintGate();
+  render();
+  // אם מודול הענן לא נטען תוך תשע שניות, ממשיכים מקומית במקום להישאר תקועים
+  if (WANTS_CLOUD) setTimeout(()=>{ if (!authKnown) cloud.onDown(); }, 9000);
+})();
+</script>
+
+<script type="module">
+/* ===========================================================================
+   מודול הענן. נטען רק כשיש הגדרות Firebase, וחי במודול נפרד: אם הרשת או
+   הדפדפן חוסמים אותו, האפליקציה שלמעלה פשוט ממשיכה לעבוד מקומית.
+
+   מבנה הנתונים בשרת:
+     users/{uid}                 = { email, spaceId, homeSpaceId }
+     spaces/{code}               = { ownerUid, ownerEmail, memberEmails[], settings }
+     spaces/{code}/players/{id}
+     spaces/{code}/types/{id}
+     spaces/{code}/entries/{id}
+     spaces/{code}/measurements/{id}
+     spaces/{code}/games/{id}
+   =========================================================================== */
+var bridge = window.TrainingCloud;
+if (bridge.configured) {
+  try {
+    var V = "https://www.gstatic.com/firebasejs/10.14.1/";
+    var appMod  = await import(V + "firebase-app.js");
+    var authMod = await import(V + "firebase-auth.js");
+    var dbMod   = await import(V + "firebase-firestore.js");
+
+    var app  = appMod.initializeApp(bridge.config);
+    var auth = authMod.getAuth(app);
+    var db   = dbMod.getFirestore(app);
+    await authMod.setPersistence(auth, authMod.browserLocalPersistence);
+
+    var COLS = ["players", "types", "entries", "measurements", "games"];
+
+    var SAYS = {
+      "auth/invalid-email": "כתובת המייל אינה תקינה.",
+      "auth/missing-password": "צריך למלא סיסמה.",
+      "auth/weak-password": "הסיסמה קצרה מדי, צריך שישה תווים לפחות.",
+      "auth/email-already-in-use": "כבר קיים חשבון עם המייל הזה. אפשר להיכנס איתו.",
+      "auth/invalid-credential": "מייל או סיסמה שגויים.",
+      "auth/wrong-password": "מייל או סיסמה שגויים.",
+      "auth/user-not-found": "לא נמצא חשבון עם המייל הזה.",
+      "auth/too-many-requests": "יותר מדי ניסיונות. נסה שוב עוד כמה דקות.",
+      "auth/network-request-failed": "אין חיבור לרשת כרגע.",
+      "auth/popup-closed-by-user": "חלון הכניסה נסגר לפני שהסתיים.",
+      "auth/unauthorized-domain": "הכתובת הזו לא מאושרת ב Firebase. צריך להוסיף אותה תחת Authentication ← Settings ← Authorized domains.",
+      "permission-denied": "אין הרשאה לקרוא או לכתוב. צריך לעדכן את כללי הגישה ב Firestore."
+    };
+    function say(err) {
+      var code = (err && (err.code || err.message)) || "";
+      bridge.onProblem(SAYS[code] || ("משהו השתבש: " + code));
+    }
+
+    var provider = new authMod.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
+    function installedApp() {
+      if (window.navigator.standalone === true) return true;          // אייפון, מסך הבית
+      if (!window.matchMedia) return false;
+      return ["standalone", "fullscreen", "minimal-ui"].some(function (m) {
+        return window.matchMedia("(display-mode: " + m + ")").matches;
+      });
+    }
+
+    // חזרה מהפניה, כשחלון קופץ לא היה אפשרי
+    authMod.getRedirectResult(auth).catch(function () {});
+
+    /* ---------- מרחב הנתונים ---------- */
+    var ALPHA = "abcdefghjkmnpqrstuvwxyz23456789";
+    function newCode() {
+      var out = "";
+      for (var i = 0; i < 6; i++) out += ALPHA[Math.floor(Math.random() * ALPHA.length)];
+      return out;
+    }
+
+    async function ensureSpace(u) {
+      var uref = dbMod.doc(db, "users", u.uid);
+      var snap = await dbMod.getDoc(uref);
+      var cur = snap.exists() ? snap.data() : null;
+      if (cur && cur.spaceId) return { spaceId: cur.spaceId, homeSpaceId: cur.homeSpaceId || cur.spaceId };
+
+      var email = (u.email || "").toLowerCase();
+      for (var i = 0; i < 8; i++) {
+        var id = newCode();
+        try {
+          await dbMod.setDoc(dbMod.doc(db, "spaces", id), {
+            ownerUid: u.uid, ownerEmail: email, memberEmails: [email],
+            createdAt: new Date().toISOString()
+          });
+          await dbMod.setDoc(uref, { email: email, spaceId: id, homeSpaceId: id }, { merge: true });
+          return { spaceId: id, homeSpaceId: id };
+        } catch (e) { /* הקוד תפוס, מנסים אחר */ }
+      }
+      throw new Error("לא הצלחתי לפתוח מרחב נתונים.");
+    }
+
+    var stops = [], activeSpace = null;
+    function unwatch() { stops.forEach(function (f) { try { f(); } catch (e) {} }); stops = []; }
+
+    function watch(sid) {
+      unwatch();
+      activeSpace = sid;
+      COLS.forEach(function (c) {
+        stops.push(dbMod.onSnapshot(dbMod.collection(db, "spaces", sid, c), function (snap) {
+          var out = [];
+          snap.forEach(function (d) { out.push(d.data()); });
+          bridge.onRecords(c, out);
+        }, say));
+      });
+      stops.push(dbMod.onSnapshot(dbMod.doc(db, "spaces", sid), function (d) {
+        if (!d.exists()) return;
+        var v = d.data();
+        bridge.onSpace({ id: sid, ownerUid: v.ownerUid, ownerEmail: v.ownerEmail || "", memberEmails: v.memberEmails || [] });
+        if (v.settings) bridge.onSettings(v.settings);
+      }, say));
+    }
+
+    /* ---------- מה שהאפליקציה קוראת לו ---------- */
+    bridge.api = {
+      // בתוך אפליקציה שהותקנה למסך הבית חלון קופץ נפתח בהקשר שהאפליקציה לא
+      // יכולה להגיע אליו, וההבטחה לא נפתרת ולא נכשלת. לכן בוחרים את השיטה
+      // מראש לפי מצב התצוגה, ולא מנסים להתאושש אחרי כישלון שלא נזרק.
+      google: function () {
+        if (installedApp()) return authMod.signInWithRedirect(auth, provider).catch(say);
+        return authMod.signInWithPopup(auth, provider).catch(function (e) {
+          var c = (e && e.code) || "";
+          if (c === "auth/popup-blocked" || c === "auth/cancelled-popup-request" ||
+              c === "auth/operation-not-supported-in-this-environment")
+            return authMod.signInWithRedirect(auth, provider).catch(say);
+          say(e);
+        });
+      },
+      signIn:  function (email, pw) { return authMod.signInWithEmailAndPassword(auth, email, pw).catch(say); },
+      signUp:  function (email, pw) { return authMod.createUserWithEmailAndPassword(auth, email, pw).catch(say); },
+      reset:   function (email) {
+        return authMod.sendPasswordResetEmail(auth, email)
+          .then(function () { bridge.onNotice("נשלח אליך מייל לאיפוס הסיסמה."); }).catch(say);
+      },
+      signOut: function () { unwatch(); activeSpace = null; return authMod.signOut(auth).catch(say); },
+
+      push: async function (byCol, settings) {
+        if (!auth.currentUser || !activeSpace) throw new Error("no-space");
+        var writes = [];
+        Object.keys(byCol).forEach(function (c) {
+          byCol[c].forEach(function (r) {
+            writes.push({ ref: dbMod.doc(db, "spaces", activeSpace, c, r.id), body: r, merge: false });
+          });
+        });
+        if (settings) writes.push({ ref: dbMod.doc(db, "spaces", activeSpace), body: { settings: settings }, merge: true });
+        for (var i = 0; i < writes.length; i += 400) {
+          var batch = dbMod.writeBatch(db);
+          writes.slice(i, i + 400).forEach(function (w) {
+            if (w.merge) batch.set(w.ref, w.body, { merge: true }); else batch.set(w.ref, w.body);
+          });
+          try { await batch.commit(); }
+          catch (e) { say(e); throw e; }
+        }
+      },
+
+      addMember: function (email) {
+        return dbMod.updateDoc(dbMod.doc(db, "spaces", activeSpace),
+          { memberEmails: dbMod.arrayUnion(String(email).trim().toLowerCase()) });
+      },
+      removeMember: function (email) {
+        return dbMod.updateDoc(dbMod.doc(db, "spaces", activeSpace),
+          { memberEmails: dbMod.arrayRemove(String(email).trim().toLowerCase()) });
+      },
+      joinSpace: async function (sid) {
+        sid = String(sid || "").trim().toLowerCase();
+        var snap = await dbMod.getDoc(dbMod.doc(db, "spaces", sid));   // נדחה אם המייל לא ברשימה
+        if (!snap.exists()) throw new Error("not-found");
+        await dbMod.setDoc(dbMod.doc(db, "users", auth.currentUser.uid), { spaceId: sid }, { merge: true });
+        watch(sid);
+        return sid;
+      }
+    };
+
+    authMod.onAuthStateChanged(auth, async function (u) {
+      unwatch();
+      activeSpace = null;
+      if (!u) { bridge.onUser(null); return; }
+      bridge.onUser({ uid: u.uid, email: (u.email || "").toLowerCase(), name: u.displayName || "" });
+      try {
+        var sp = await ensureSpace(u);
+        bridge.onHome(sp.homeSpaceId);
+        watch(sp.spaceId);
+      } catch (e) { say(e); }
+    });
+  } catch (e) {
+    bridge.onDown();
+  }
+}
+</script>
+</body>
+</html>

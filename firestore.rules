@@ -1,0 +1,63 @@
+rules_version = '2';
+
+// כללי הגישה של יומן האימונים.
+//
+// users/{uid}      הרשומה הפרטית של כל משתמש: לאיזה מרחב הוא מחובר כרגע.
+// spaces/{code}    מרחב נתונים: בעלים אחד, ורשימת מיילים של מי שהוזמן אליו.
+// spaces/{code}/*  השחקנים, האימונים, המדידות והמשחקים של אותו מרחב.
+//
+// משתמש רואה אך ורק מרחבים שהוא הבעלים שלהם, או שהמייל שלו נמצא ברשימה.
+// זה מה שמפריד בין מיכאל לבין כל חבר אחר שישתמש באפליקציה.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function myEmail() {
+      return signedIn() && request.auth.token.email != null
+        ? request.auth.token.email.lower()
+        : "";
+    }
+
+    function memberOf(d) {
+      return signedIn() && (d.ownerUid == request.auth.uid || myEmail() in d.memberEmails);
+    }
+
+    // כל אחד קורא וכותב רק את הרשומה של עצמו
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /spaces/{spaceId} {
+
+      function spaceData() {
+        return get(/databases/$(database)/documents/spaces/$(spaceId)).data;
+      }
+
+      // מרחב חדש נפתח רק על שם עצמך, ורק עם המייל שלך ברשימה
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.memberEmails.hasOnly([myEmail()]);
+
+      allow read: if memberOf(resource.data);
+
+      // חברים במרחב יכולים לעדכן הגדרות, אבל רק הבעלים משנה את רשימת המשתתפים
+      allow update: if memberOf(resource.data)
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && (request.auth.uid == resource.data.ownerUid
+            || request.resource.data.memberEmails == resource.data.memberEmails);
+
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+
+      // הנתונים עצמם: קריאה וכתיבה לכל מי שנמצא במרחב
+      match /{collection}/{docId} {
+        allow read, write: if memberOf(spaceData());
+      }
+    }
+
+    // כל מה שלא הותר במפורש למעלה נדחה ממילא, אין צורך בכלל סוגר.
+  }
+}
