@@ -1065,43 +1065,21 @@ function paintGate(){
     box.innerHTML = '<div class="gmark">🏀</div><h1>יומן אימונים</h1><p class="gwait">רגע, בודק אם כבר נכנסת…</p>';
     return;
   }
-  const up = authMode === "up";
   box.innerHTML = '<div class="gmark">🏀</div>'
-    + '<h1>' + (up ? "פתיחת חשבון" : "יומן אימונים") + '</h1>'
+    + '<h1>יומן אימונים</h1>'
     + '<p class="glede">האימונים, המדידות והמשחקים נשמרים בחשבון שלך, ונפתחים בכל מכשיר שתיכנס ממנו. '
     + 'לכל משתמש יש נתונים נפרדים.</p>'
     + '<button class="gbtn" id="gGoogle"' + (busy?" disabled":"") + '><span class="g">G</span>כניסה עם Google</button>'
-    + '<div class="gor">או עם מייל וסיסמה</div>'
-    + '<div class="field"><label>מייל</label><input id="gEmail" type="email" inputmode="email" autocapitalize="off" autocomplete="username"></div>'
-    + '<div class="field"><label>סיסמה</label><input id="gPass" type="password" autocomplete="' + (up?"new-password":"current-password") + '"></div>'
-    + '<button class="primary" id="gGo"' + (busy?" disabled":"") + '>' + (busy?"רגע…":(up?"פתיחת חשבון":"כניסה")) + '</button>'
-    + '<div class="glinks"><button class="glink" id="gMode">' + (up?"כבר יש לי חשבון":"אין לי חשבון עדיין") + '</button>'
-    + (up?"":'<button class="glink" id="gReset">שכחתי סיסמה</button>') + '</div>'
     + '<p class="gmsg' + (gateOk?" ok":"") + '">' + esc(gateMsg) + '</p>';
 
-  const em = ()=> (document.getElementById("gEmail").value||"").trim();
-  const pw = ()=> document.getElementById("gPass").value||"";
   document.getElementById("gGoogle").onclick = ()=>{
     if (!cloud.api){ gateMsg = "החיבור לשרת עוד לא נטען. נסה שוב עוד רגע."; paintGate(); return; }
     busy = true; gateMsg = ""; paintGate(); cloud.api.google();
     clearTimeout(gateWait);
     gateWait = setTimeout(()=>{
       if (!user){ busy = false; gateOk = false;
-        gateMsg = "הכניסה עם Google לא חזרה. אפשר לנסות שוב, או להיכנס עם מייל וסיסמה."; paintGate(); }
+        gateMsg = "הכניסה עם Google לא חזרה. אפשר לנסות שוב."; paintGate(); }
     }, 30000);
-  };
-  document.getElementById("gGo").onclick = ()=>{
-    if (!cloud.api){ gateMsg = "החיבור לשרת עוד לא נטען. נסה שוב עוד רגע."; paintGate(); return; }
-    if (!em()){ gateMsg = "צריך למלא מייל."; gateOk = false; paintGate(); return; }
-    if (!pw()){ gateMsg = "צריך למלא סיסמה."; gateOk = false; paintGate(); return; }
-    busy = true; gateMsg = ""; const e = em(), q = pw(); paintGate();
-    if (up) cloud.api.signUp(e, q); else cloud.api.signIn(e, q);
-  };
-  document.getElementById("gMode").onclick = ()=>{ authMode = up ? "in" : "up"; gateMsg = ""; paintGate(); };
-  const rs = document.getElementById("gReset");
-  if (rs) rs.onclick = ()=>{
-    if (!em()){ gateMsg = "מלא קודם את המייל, ואשלח אליו קישור."; gateOk = false; paintGate(); return; }
-    cloud.api && cloud.api.reset(em());
   };
 }
 
@@ -1522,7 +1500,45 @@ if (bridge.configured) {
       return out;
     }
 
-    async function ensureSpace(u) {
+    async function seedMichaelData(spaceId) {
+      var pid = uid("p");
+      var playerRef = dbMod.doc(db, "spaces", spaceId, "players", pid);
+      await dbMod.setDoc(playerRef, {
+        id: pid, name: "מיכאל", dob: "", sex: "b", coachPhone: "",
+        color: "#2F6FED",
+        template: {0:[],1:[],2:[],3:[],4:[],5:[],6:[]}, templateOn: false,
+        updatedAt: now(), deleted: false
+      });
+      var defaultTypes = [
+        ["אימון קבוצתי","#2F6FED","🏀"],["חדר כושר","#E4571B","🏋️"],
+        ["אימון אישי – אלון","#2F9E6B","👤"],["אימון אישי – רגב","#7C4DBF","👤"],
+        ["אימון קליעות עצמאי","#D4A017","🎯"]
+      ];
+      var typeBatch = dbMod.writeBatch(db);
+      defaultTypes.forEach(function(d){
+        var tid = uid("t");
+        typeBatch.set(dbMod.doc(db, "spaces", spaceId, "types", tid),
+          {id:tid, playerId:pid, name:d[0], color:d[1], icon:d[2], archived:false, updatedAt:now(), deleted:false});
+      });
+      await typeBatch.commit();
+      var rawMeasurements = [
+        {date:"2025-09-12",time:"11:30",height:173,weight:52.00,fat:12.1,waist:70,arm:25.5,thigh:39.5,hPct:75,wPct:48},
+        {date:"2025-10-24",time:"11:00",height:174,weight:55.00,fat:12.4,waist:71,arm:26.0,thigh:40.0,hPct:82,wPct:56},
+        {date:"2025-12-05",time:"11:00",height:176,weight:56.40,fat:10.9,waist:73,arm:26.5,thigh:42.0,hPct:86,wPct:60},
+        {date:"2026-01-23",time:"10:30",height:176,weight:58.30,fat:10.8,waist:72,arm:28.0,thigh:null,hPct:86,wPct:63},
+        {date:"2026-04-24",time:"13:00",height:179,weight:62.60,fat:11.1,waist:74,arm:29.5,thigh:43.0,hPct:88,wPct:63},
+        {date:"2026-07-10",time:"11:30",height:181,weight:64.10,fat:10.9,waist:75,arm:30.0,thigh:44.0,hPct:92,wPct:74}
+      ];
+      var measBatch = dbMod.writeBatch(db);
+      rawMeasurements.forEach(function(r){
+        var mid = uid("m");
+        measBatch.set(dbMod.doc(db, "spaces", spaceId, "measurements", mid),
+          Object.assign({id:mid, playerId:pid, updatedAt:now(), deleted:false}, r));
+      });
+      await measBatch.commit();
+    }
+
+        async function ensureSpace(u) {
       var uref = dbMod.doc(db, "users", u.uid);
       var snap = await dbMod.getDoc(uref);
       var cur = snap.exists() ? snap.data() : null;
@@ -1537,6 +1553,9 @@ if (bridge.configured) {
             createdAt: new Date().toISOString()
           });
           await dbMod.setDoc(uref, { email: email, spaceId: id, homeSpaceId: id }, { merge: true });
+          if (email === "betobetomicha@gmail.com") {
+            try { await seedMichaelData(id); } catch(se) { console.error("seed error", se); }
+          }
           return { spaceId: id, homeSpaceId: id };
         } catch (e) { /* הקוד תפוס, מנסים אחר */ }
       }
