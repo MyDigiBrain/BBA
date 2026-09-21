@@ -87,6 +87,30 @@
   .seg{flex:none;padding:8px 13px;border-radius:11px;border:1px solid var(--line);background:var(--card);font-size:14px;font-weight:600;color:var(--muted)}
   .seg.on{border-color:var(--accent);color:var(--accent);background:transparent;background:color-mix(in srgb, var(--accent) 12%, transparent)}
   .blank{text-align:center;color:var(--muted);font-size:15px;padding:34px 20px;line-height:1.6}
+  .segs.fill .seg{flex:1;text-align:center;padding-inline:6px}
+  .stats.four{grid-template-columns:repeat(4,1fr);gap:6px}
+  .stats.two{grid-template-columns:repeat(2,1fr)}
+  .stats.four .v, .stats.two .v{font-size:20px}
+  .stat .v.none{font-size:15px;color:var(--muted);font-weight:600;padding:4px 0}
+  .stat .r{font-size:12px;color:var(--muted);margin-top:1px}
+  .cnote{font-size:13px;color:var(--muted);line-height:1.5;margin-top:12px}
+  .listrow .t2.warn{color:var(--accent);font-weight:600}
+  .shot{display:grid;grid-template-columns:minmax(0,1fr) 62px 62px 92px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+  .shot.head{padding:0 0 2px;border-bottom:0}
+  .shot.head span{font-size:12px;color:var(--muted);text-align:center}
+  .shot .nm{font-size:15px;font-weight:600}
+  .shot .nm small{display:block;font-size:12px;color:var(--muted);font-weight:500}
+  .shot input{width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 4px;text-align:center;font-size:20px;font-weight:700}
+  .shot.bad input{border-color:#C63232}
+  .shot .res{text-align:left;font-size:15px;font-weight:600}
+  .shot .res small{display:block;font-size:12px;color:var(--muted);font-weight:500}
+  .shot.total{border-bottom:0;padding:10px 0 4px}
+  .shot.total .v{font-size:30px;font-weight:700;text-align:center;letter-spacing:-.5px}
+  .ferr{color:#C63232;font-size:13px;margin-top:6px}
+  .ferr:empty, .fnote:empty{display:none}
+  .fnote{font-size:13px;line-height:1.45;margin-top:4px}
+  .fnote.ok{color:var(--done)}
+  .fnote.warn{color:var(--accent)}
   svg.chart{width:100%;height:auto;display:block;touch-action:pan-y}
 
   /* ----- bottom ----- */
@@ -294,6 +318,7 @@ let data = freshData();
 let tab = "train";
 let cursor = new Date();
 let growMetric = "h", gameMetric = "pts";
+let gameSeason = null, gameComps = ["tr","cup","lg"], gameMode = "avg";
 let lastDeleted = null, toastTimer = null;
 
 /* ---------- מצב החשבון ---------- */
@@ -704,61 +729,151 @@ function measureSheet(m){
   if (!isNew) $("#del").onclick = ()=>{ softDelete(m); render(); closeSheet(); toast("המדידה נמחקה"); };
 }
 
-/* ---------------- משחקים ---------------- */
-const GS = [["min","דקות"],["pts","נקודות"],["reb","ריבאונדים"],["ast","אסיסטים"],["stl","חטיפות"],["tov","איבודים"]];
+/* ---------------- משחקים ----------------
+   הנקודות לא מוזנות ישירות: הן מחושבות מהזריקות לפי סוג.
+   לכל משחק נשמרים עונה ומסגרת. משחקים שנרשמו לפני השינוי,
+   בלי נתוני זריקות, ממשיכים לעבוד עם הנקודות שנרשמו בהם.
+   ------------------------------------------- */
+const GS = [["min","דקות"],["reb","ריבאונדים"],["ast","אסיסטים"],["stl","חטיפות"],["tov","איבודים"]];
+const SHOTS = [["ft","עונשין","נקודה אחת",1],["p2","זריקות ל-2","2 נקודות",2],["p3","זריקות ל-3","3 נקודות",3]];
+const SHOT_KEYS = ["ftm","fta","p2m","p2a","p3m","p3a"];
+const COMPS = [["tr","משחק אימון"],["cup","גביע"],["lg","ליגה"]];
+const compName = k => (COMPS.find(c=>c[0]===k) || COMPS[2])[1];
+const hasShots = g => SHOT_KEYS.every(k=> typeof g[k]==="number" && isFinite(g[k]));
+const gPts = g => hasShots(g) ? g.ftm + 2*g.p2m + 3*g.p3m : (g.pts||0);
+// עונה חדשה מתחילה ב-1 באוגוסט
+function seasonFromDate(k){ const d = parseKey(k || key(new Date())), y = d.getFullYear(); return d.getMonth()>=7 ? y+"-"+(y+1) : (y-1)+"-"+y; }
+function shiftSeason(x, n){ const y = Number(x.slice(0,4)) + n; return y+"-"+(y+1); }
+const seasonOf = g => g.season || seasonFromDate(g.date);
+const compOf = g => g.comp || "lg";
+// יעילות בנוסחה המקובלת: נקודות + ריבאונדים + אסיסטים + חטיפות, פחות איבודים והחטאות.
+// במשחק בלי נתוני זריקות אין החטאות להוריד, ולכן היעילות שלו חלקית.
+const eff = g => gPts(g)+(g.reb||0)+(g.ast||0)+(g.stl||0)-(g.tov||0)
+  - (hasShots(g) ? (g.p2a-g.p2m)+(g.p3a-g.p3m)+(g.fta-g.ftm) : 0);
+const r1 = v => String(Math.round(v*10)/10);
+const pctTxt = (m,a) => a ? r1(m/a*100)+"%" : "";
+const shotLine = g => "FG "+(g.p2m+g.p3m)+"/"+(g.p2a+g.p3a)+" · 3P "+g.p3m+"/"+g.p3a+" · FT "+g.ftm+"/"+g.fta;
+
 function gameList(){ return mine("games").slice().sort((a,b)=> b.date.localeCompare(a.date)); }
-const eff = g => (g.pts||0)+(g.reb||0)+(g.ast||0)+(g.stl||0)-(g.tov||0);
+function gameSeasons(){ return Array.from(new Set(gameList().map(seasonOf))).sort().reverse(); }
+function curSeason(){
+  const all = gameSeasons();
+  if (all.indexOf(gameSeason) < 0) gameSeason = all[0] || seasonFromDate();
+  return gameSeason;
+}
+function filteredGames(){
+  const se = curSeason();
+  return gameList().filter(g=> seasonOf(g)===se && gameComps.indexOf(compOf(g))>=0);
+}
 function seasonAgg(list){
-  const s = {n:list.length, min:0,pts:0,reb:0,ast:0,stl:0,tov:0,eff:0};
-  list.forEach(g=>{ s.min+=g.min||0; s.pts+=g.pts||0; s.reb+=g.reb||0; s.ast+=g.ast||0; s.stl+=g.stl||0; s.tov+=g.tov||0; s.eff+=eff(g); });
+  const s = {n:list.length, k:0, partial:0, min:0,pts:0,reb:0,ast:0,stl:0,tov:0,eff:0,
+             ftm:0,fta:0,p2m:0,p2a:0,p3m:0,p3a:0, ptsS:0};
+  list.forEach(g=>{
+    const p = gPts(g);
+    s.min+=g.min||0; s.pts+=p; s.reb+=g.reb||0; s.ast+=g.ast||0; s.stl+=g.stl||0; s.tov+=g.tov||0; s.eff+=eff(g);
+    if (hasShots(g)){ s.k++; s.ptsS+=p; SHOT_KEYS.forEach(x=> s[x]+=g[x]); } else s.partial++;
+  });
+  s.fgm = s.p2m+s.p3m; s.fga = s.p2a+s.p3a;
+  s.efg = s.fga ? (s.fgm+0.5*s.p3m)/s.fga : null;
+  const tsa = 2*(s.fga+0.44*s.fta); s.ts = tsa ? s.ptsS/tsa : null;
   return s;
 }
+// כרטיס האחוזים: t מכיל קליעות וזריקות לפי סוג ואת הנקודות שנצברו מהן
+function shootHtml(t, k, perGame){
+  const fgm = t.p2m+t.p3m, fga = t.p2a+t.p3a;
+  const ln = (m,a)=> perGame ? (m/k).toFixed(1)+"/"+(a/k).toFixed(1) : m+"/"+a;
+  const cell = (lbl,m,a)=> '<div class="stat"><div class="v'+(a?'':' none')+'">'+(a?pctTxt(m,a):"אין")+'</div>'
+    + '<div class="l" dir="ltr">'+lbl+'</div><div class="r" dir="ltr">'+ln(m,a)+'</div></div>';
+  const tsa = 2*(fga+0.44*t.fta);
+  const efg = fga ? pctTxt(fgm+0.5*t.p3m, fga) : "", ts = tsa ? r1(t.pts/tsa*100)+"%" : "";
+  const one = (lbl,val)=> '<div class="stat"><div class="v'+(val?'':' none')+'">'+(val||"אין")+'</div><div class="l" dir="ltr">'+lbl+'</div></div>';
+  return '<div class="stats four">'+cell("FG%",fgm,fga)+cell("2P%",t.p2m,t.p2a)+cell("3P%",t.p3m,t.p3a)+cell("FT%",t.ftm,t.fta)+'</div>'
+    + '<div class="stats two" style="margin-top:12px">'+one("eFG%",efg)+one("TS%",ts)+'</div>';
+}
+
 function renderGames(){
   $("#prev").classList.add("hid"); $("#next").classList.add("hid"); $("#todayBtn").hidden = true;
   $("#range").textContent = "משחקים";
-  const list = gameList();
-  const s = seasonAgg(list);
-  $("#sub").textContent = list.length ? list.length+" משחקים · ממוצע "+(s.pts/s.n).toFixed(1)+" נקודות" : "אין עדיין משחקים";
   $("#cta").textContent = "הוספת משחק"; $("#cta").onclick = ()=> gameSheet();
-
-  if (!list.length){
+  if (!gameList().length){
+    $("#sub").textContent = "אין עדיין משחקים";
     view.innerHTML = '<div class="blank">כאן נרשמים המשחקים.<br>אפשר להזין גם משחקים שכבר היו.</div>';
     return;
   }
-  const avg = k => (s[k]/s.n).toFixed(1);
-  const per10 = k => s.min ? (s[k]/s.min*10).toFixed(1) : "—";
-  let html = '<div class="card"><h3>ממוצע למשחק</h3><div class="stats">'
-    + '<div class="stat"><div class="v">'+avg("pts")+'</div><div class="l">נקודות</div></div>'
-    + '<div class="stat"><div class="v">'+avg("reb")+'</div><div class="l">ריבאונדים</div></div>'
-    + '<div class="stat"><div class="v">'+avg("ast")+'</div><div class="l">אסיסטים</div></div>'
-    + '</div><div class="stats" style="margin-top:12px">'
-    + '<div class="stat"><div class="v">'+avg("stl")+'</div><div class="l">חטיפות</div></div>'
-    + '<div class="stat"><div class="v">'+avg("tov")+'</div><div class="l">איבודים</div></div>'
-    + '<div class="stat"><div class="v">'+avg("min")+'</div><div class="l">דקות</div></div>'
+  const season = curSeason(), list = filteredGames(), s = seasonAgg(list), n = s.n, tot = gameMode==="tot";
+  $("#sub").textContent = "עונת "+season+" · "+(n ? (n===1 ? "משחק אחד" : n+" משחקים") : "אין משחקים בבחירה");
+
+  let html = '<div class="card"><div class="field" style="margin-bottom:10px"><label>עונה</label><select id="gsea">'
+    + gameSeasons().map(x=>'<option value="'+x+'"'+(x===season?" selected":"")+'>'+x+'</option>').join("") + '</select></div>'
+    + '<div class="segs" style="margin-bottom:8px"><button class="seg'+(gameComps.length===COMPS.length?" on":"")+'" data-c="all">הכל</button>'
+    + COMPS.map(([k,l])=>'<button class="seg'+(gameComps.indexOf(k)>=0?" on":"")+'" data-c="'+k+'">'+l+'</button>').join("") + '</div>'
+    + '<div class="segs fill" style="margin-bottom:0">'
+    + [["avg","ממוצע למשחק"],["tot","סה״כ"]].map(([k,l])=>'<button class="seg'+(k===gameMode?" on":"")+'" data-m="'+k+'">'+l+'</button>').join("")
     + '</div></div>';
-  html += '<div class="card"><h3>מדדי יעילות</h3><div class="stats">'
-    + '<div class="stat"><div class="v">'+avg("eff")+'</div><div class="l">יעילות למשחק</div><div class="p">נק׳+רב׳+אס׳+חט׳−איב׳</div></div>'
-    + '<div class="stat"><div class="v">'+per10("eff")+'</div><div class="l">יעילות ל-10 דקות</div></div>'
-    + '<div class="stat"><div class="v">'+(s.tov? (s.ast/s.tov).toFixed(1) : "—")+'</div><div class="l">אסיסט לאיבוד</div></div>'
-    + '</div></div>';
-  html += '<div class="segs">' + [["pts","נקודות"],["eff","יעילות"],["reb","ריבאונדים"],["ast","אסיסטים"],["min","דקות"]]
-      .map(([k,l])=>'<button class="seg'+(k===gameMetric?" on":"")+'" data-g="'+k+'">'+l+'</button>').join("") + '</div>';
-  html += '<div class="card">'+gamesChart(gameMetric, list.slice().reverse())+'</div>';
-  html += '<div class="card"><h3>כל המשחקים</h3>' + list.map(g=>
-      '<button class="listrow" data-id="'+g.id+'"><div class="main"><div class="t1">'
-      + (g.home?"בית · ":"חוץ · ") + esc(g.opponent||"יריבה לא רשומה") + '</div><div class="t2">'
-      + shortDate(g.date) + (g.venue?" · "+esc(g.venue):"") + ' · ' + (g.min||0) + ' דק׳ · '
-      + (g.reb||0)+' רב׳ · '+(g.ast||0)+' אס׳ · '+(g.stl||0)+' חט׳ · '+(g.tov||0)+' איב׳</div></div>'
-      + '<div class="badge">'+(g.pts||0)+'<small>נק׳ · יע׳ '+eff(g)+'</small></div></button>').join("") + '</div>';
-  html += '<button class="ghost" id="shareSeason">דוח משחקים לשיתוף</button>';
+
+  if (!n){
+    html += '<div class="blank">אין משחקים בבחירה הזו.<br>אפשר לבחור עונה או מסגרות אחרות.</div>';
+  } else {
+    const f = k => tot ? String(s[k]) : (s[k]/n).toFixed(1);
+    html += '<div class="card"><h3>'+(tot?"סה״כ בעונה":"ממוצע למשחק")+'</h3><div class="stats">'
+      + '<div class="stat"><div class="v">'+f("pts")+'</div><div class="l">נקודות</div></div>'
+      + '<div class="stat"><div class="v">'+f("reb")+'</div><div class="l">ריבאונדים</div></div>'
+      + '<div class="stat"><div class="v">'+f("ast")+'</div><div class="l">אסיסטים</div></div>'
+      + '</div><div class="stats" style="margin-top:12px">'
+      + '<div class="stat"><div class="v">'+f("stl")+'</div><div class="l">חטיפות</div></div>'
+      + '<div class="stat"><div class="v">'+f("tov")+'</div><div class="l">איבודים</div></div>'
+      + '<div class="stat"><div class="v">'+f("min")+'</div><div class="l">דקות</div></div>'
+      + '</div></div>';
+
+    html += '<div class="card"><h3>קליעה</h3>';
+    if (!s.k) html += '<div class="cnote" style="margin-top:0">עדיין אין בבחירה הזו משחקים עם נתוני זריקות.</div>';
+    else {
+      html += shootHtml(Object.assign({}, s, {pts:s.ptsS}), s.k, !tot);
+      if (s.k < n) html += '<div class="cnote">אחוזי הקליעה מחושבים מ-'+s.k+' מתוך '+n+' משחקים, אלה שבהם הוזנו זריקות.</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="card"><h3>מדדי יעילות</h3><div class="stats">'
+      + '<div class="stat"><div class="v">'+(s.eff/n).toFixed(1)+'</div><div class="l">יעילות למשחק</div><div class="p">נק׳+רב׳+אס׳+חט׳−איב׳−החטאות</div></div>'
+      + '<div class="stat"><div class="v'+(s.min?'':' none')+'">'+(s.min ? (s.eff/s.min*10).toFixed(1) : "אין")+'</div><div class="l">יעילות ל-10 דקות</div></div>'
+      + '<div class="stat"><div class="v'+(s.tov?'':' none')+'">'+(s.tov ? (s.ast/s.tov).toFixed(1) : "אין")+'</div><div class="l">אסיסט לאיבוד</div></div>'
+      + '</div>'
+      + (s.partial ? '<div class="cnote">'+(s.partial===1 ? "במשחק אחד חסרים נתוני זריקות, ולכן היעילות שלו לא כוללת החטאות."
+                     : "ב-"+s.partial+" משחקים חסרים נתוני זריקות, ולכן היעילות שלהם לא כוללת החטאות.")+'</div>' : '')
+      + '</div>';
+
+    html += '<div class="segs">' + [["pts","נקודות"],["eff","יעילות"],["reb","ריבאונדים"],["ast","אסיסטים"],["min","דקות"]]
+        .map(([k,l])=>'<button class="seg'+(k===gameMetric?" on":"")+'" data-g="'+k+'">'+l+'</button>').join("") + '</div>';
+    html += '<div class="card">'+gamesChart(gameMetric, list.slice().reverse())+'</div>';
+
+    html += '<div class="card"><h3>משחקים</h3>' + list.map(g=>
+        '<button class="listrow" data-id="'+g.id+'"><div class="main"><div class="t1">'
+        + (g.home?"בית · ":"חוץ · ") + esc(g.opponent||"יריבה לא רשומה") + '</div><div class="t2">'
+        + shortDate(g.date) + ' · ' + compName(compOf(g)) + (g.venue?" · "+esc(g.venue):"") + ' · ' + (g.min||0) + ' דק׳ · '
+        + (g.reb||0)+' רב׳ · '+(g.ast||0)+' אס׳ · '+(g.stl||0)+' חט׳ · '+(g.tov||0)+' איב׳</div>'
+        + (hasShots(g) ? '<div class="t2"><span dir="ltr">'+shotLine(g)+'</span></div>' : '<div class="t2 warn">להשלמת זריקות</div>')
+        + '</div><div class="badge">'+gPts(g)+'<small>נק׳ · יע׳ '+eff(g)+'</small></div></button>').join("") + '</div>';
+    html += '<button class="ghost" id="shareSeason">דוח משחקים לשיתוף</button>';
+  }
   view.innerHTML = html;
+  $("#gsea").onchange = e=>{ gameSeason = e.target.value; render(); };
+  view.querySelectorAll("[data-c]").forEach(b=> b.onclick = ()=>{
+    const c = b.dataset.c;
+    if (c==="all") gameComps = COMPS.map(x=>x[0]);
+    else if (gameComps.indexOf(c)>=0){
+      if (gameComps.length===1){ toast("צריך לבחור לפחות מסגרת אחת"); return; }
+      gameComps = gameComps.filter(x=>x!==c);
+    } else gameComps = gameComps.concat([c]);
+    render();
+  });
+  view.querySelectorAll("[data-m]").forEach(b=> b.onclick = ()=>{ gameMode = b.dataset.m; render(); });
   view.querySelectorAll("[data-g]").forEach(b=> b.onclick = ()=>{ gameMetric = b.dataset.g; render(); });
   view.querySelectorAll("[data-id]").forEach(b=> b.onclick = ()=> gameSheet(data.games.find(g=>g.id===b.dataset.id)));
-  $("#shareSeason").onclick = gamesReportSheet;
+  if ($("#shareSeason")) $("#shareSeason").onclick = ()=> gamesReportSheet("all");
 }
 function gamesChart(k, list){
   const W=320,H=170,ml=26,mr=8,mt=10,mb=26, n=list.length;
-  const vals = list.map(g=> k==="eff" ? eff(g) : (g[k]||0));
+  const vals = list.map(g=> k==="eff" ? eff(g) : k==="pts" ? gPts(g) : (g[k]||0));
   const max = Math.max.apply(null, vals.concat([1]));
   const min = Math.min.apply(null, vals.concat([0]));
   const bw = Math.max(3, Math.min(28, (W-ml-mr)/n - 4));
@@ -770,32 +885,104 @@ function gamesChart(k, list){
     const cx = ml + (i+0.5)*((W-ml-mr)/n);
     const v = vals[i], y = sy(v), y0 = sy(Math.max(0,min));
     g += '<rect x="'+(cx-bw/2).toFixed(1)+'" y="'+Math.min(y,y0).toFixed(1)+'" width="'+bw.toFixed(1)
-       + '" height="'+Math.max(1,Math.abs(y0-y)).toFixed(1)+'" rx="3" fill="var(--accent)" opacity="'+(0.55+0.45*(v/max))+'"/>';
+       + '" height="'+Math.max(1,Math.abs(y0-y)).toFixed(1)+'" rx="3" fill="var(--accent)" opacity="'+(0.55+0.45*Math.max(0,v/max))+'"/>';
     g += '<text x="'+cx.toFixed(1)+'" y="'+(Math.min(y,y0)-3).toFixed(1)+'" font-size="9" fill="var(--muted)" text-anchor="middle">'+v+'</text>';
     if (n<=8) g += '<text x="'+cx.toFixed(1)+'" y="'+(H-6)+'" font-size="8" fill="var(--muted)" text-anchor="middle">'+esc((game.opponent||"").slice(0,6))+'</text>';
   });
   if (n>8) g += '<text x="'+ml+'" y="'+(H-6)+'" font-size="9" fill="var(--muted)">מהמשחק הישן לחדש</text>';
   return g+'</svg>';
 }
+function seasonOpts(sel){
+  const cur = seasonFromDate();
+  const list = Array.from(new Set(gameList().map(seasonOf).concat([shiftSeason(cur,-1), cur, shiftSeason(cur,1), sel]))).sort();
+  return list.map(x=>'<option value="'+x+'"'+(x===sel?" selected":"")+'>'+x+'</option>').join("");
+}
 function gameSheet(g){
   const isNew = !g;
-  const v = g || {date:key(new Date()), home:true, venue:"", opponent:"", min:"", pts:"", reb:"", ast:"", stl:"", tov:""};
+  const v = g || {date:key(new Date()), home:true, venue:"", opponent:"", min:"", reb:"", ast:"", stl:"", tov:""};
+  const legacy = !isNew && !hasShots(g);          // נרשם לפני השינוי, בלי זריקות
+  const oldPts = legacy ? (g.pts||0) : 0;
+  const lastWithComp = gameList().find(x=> x.comp);
+  let comp = isNew ? (lastWithComp ? lastWithComp.comp : "lg") : (g.comp || "");
+  let seasonTouched = !isNew && !!g.season;
+  const season = isNew ? seasonFromDate(v.date) : seasonOf(g);
+
   openSheet('<h2>'+(isNew?"משחק חדש":"עריכת משחק")+'</h2>'
     + '<div class="grid2">'
     + '<div class="field"><label>תאריך</label><input type="date" id="gd" value="'+esc(v.date)+'"></div>'
     + '<div class="field"><label>בית או חוץ</label><select id="gh"><option value="1"'+(v.home?" selected":"")+'>משחק בית</option><option value="0"'+(v.home?"":" selected")+'>משחק חוץ</option></select></div>'
     + '</div>'
+    + '<div class="field"><label>עונה</label><select id="gs">'+seasonOpts(season)+'</select></div>'
+    + '<div class="field"><label>מסגרת</label><div class="segs fill" id="gc" style="margin-bottom:0">'
+    + COMPS.map(([k,l])=>'<button class="seg'+(k===comp?" on":"")+'" data-k="'+k+'">'+l+'</button>').join("")
+    + '</div><div class="ferr" id="gcErr"></div></div>'
     + '<div class="field"><label>קבוצה יריבה</label><input id="go" value="'+esc(v.opponent)+'" placeholder="שם הקבוצה"></div>'
     + '<div class="field"><label>אולם או מקום</label><input id="gv" value="'+esc(v.venue)+'" placeholder="לא חובה"></div>'
     + '<h3>נתוני המשחק</h3><div class="grid3">'
     + GS.map(([k,l])=>'<div class="field num"><label>'+l+'</label><input id="g_'+k+'" inputmode="numeric" value="'+esc(v[k])+'"></div>').join("")
     + '</div>'
-    + '<button class="primary" id="ok">'+(isNew?"הוספה":"שמירה")+'</button>'
+    + '<h3>זריקות</h3>'
+    + (legacy ? '<p class="hint">המשחק נרשם בפורמט הקודם, עם '+oldPts+' נקודות. הזן כמה זרק וכמה קלע מכל סוג, והסכום יושווה לנקודות שנרשמו. אם לא זוכרים, אפשר להשאיר את השורות ריקות, והנקודות שנרשמו יישמרו.</p>' : '')
+    + '<div class="shot head"><span></span><span>קלע</span><span>זרק</span><span style="text-align:left">תוצאה</span></div>'
+    + SHOTS.map(([k,l,sub])=>'<div class="shot" id="row_'+k+'"><div class="nm">'+l+'<small>'+sub+'</small></div>'
+        + '<input id="s_'+k+'m" inputmode="numeric" pattern="[0-9]*" aria-label="'+l+', קליעות" value="'+esc(v[k+"m"])+'">'
+        + '<input id="s_'+k+'a" inputmode="numeric" pattern="[0-9]*" aria-label="'+l+', זריקות" value="'+esc(v[k+"a"])+'">'
+        + '<div class="res" id="res_'+k+'"></div></div>').join("")
+    + '<div class="ferr" id="shErr"></div>'
+    + '<div class="shot total"><div class="nm" style="grid-column:1 / span 3" id="totL">סך הכל נקודות</div><div class="v" id="totV"></div></div>'
+    + '<div class="fnote" id="match"></div>'
+    + '<div class="card" id="shCard" style="margin-top:10px"></div>'
+    + '<button class="primary" id="ok" style="margin-top:6px">'+(isNew?"הוספה":"שמירה")+'</button>'
     + (isNew?'':'<button class="opt danger" id="del" style="margin-top:10px"><span class="em">🗑</span>מחיקת המשחק</button>'));
+
+  const rd = id => { const t = $("#"+id).value.trim(); return t==="" ? null : Math.max(0, Math.floor(Number(t))||0); };
+  function calc(){
+    const o = {}; let any = false, bad = false;
+    SHOTS.forEach(([k,,,val])=>{
+      const m = rd("s_"+k+"m"), a = rd("s_"+k+"a");
+      if (m!==null || a!==null) any = true;
+      o[k+"m"] = m||0; o[k+"a"] = a||0;
+      const b = o[k+"m"] > o[k+"a"];
+      $("#row_"+k).classList.toggle("bad", b); if (b) bad = true;
+      $("#res_"+k).innerHTML = '<span dir="ltr">'+o[k+"m"]+'/'+o[k+"a"]+'</span>'
+        + (o[k+"a"] ? ' · '+pctTxt(o[k+"m"],o[k+"a"]) : '') + '<small>'+(o[k+"m"]*val)+' נק׳</small>';
+    });
+    $("#shErr").textContent = bad ? "מספר הקליעות לא יכול להיות גדול ממספר הזריקות" : "";
+    const pts = o.ftm + 2*o.p2m + 3*o.p3m, keepOld = legacy && !any;
+    $("#totV").textContent = keepOld ? oldPts : pts;
+    $("#totL").textContent = keepOld ? "סך הכל נקודות, לפי הרישום הקודם" : "סך הכל נקודות";
+    const mt = $("#match");
+    if (legacy && any){
+      const same = pts===oldPts;
+      mt.className = "fnote "+(same?"ok":"warn");
+      mt.textContent = same ? "תואם ל-"+oldPts+" הנקודות שנרשמו" : "נרשמו במקור "+oldPts+" נקודות, וכאן יוצא "+pts+". אפשר לשמור בכל זאת.";
+    } else { mt.className = "fnote"; mt.textContent = ""; }
+    $("#shCard").hidden = keepOld;
+    if (!keepOld) $("#shCard").innerHTML = shootHtml(Object.assign({pts:pts}, o), 1, false);
+    return {o:o, bad:bad, keepOld:keepOld, pts:pts};
+  }
+  sheet.querySelectorAll(".shot input").forEach(i=> i.oninput = calc);
+  sheet.querySelectorAll("#gc [data-k]").forEach(b=> b.onclick = ()=>{
+    comp = b.dataset.k; $("#gcErr").textContent = "";
+    sheet.querySelectorAll("#gc [data-k]").forEach(x=> x.classList.toggle("on", x===b));
+  });
+  $("#gs").onchange = ()=>{ seasonTouched = true; };
+  $("#gd").onchange = ()=>{
+    if (seasonTouched) return;
+    const se = seasonFromDate($("#gd").value); $("#gs").innerHTML = seasonOpts(se); $("#gs").value = se;
+  };
+  calc();
+
   $("#ok").onclick = ()=>{
+    const c = calc();
+    if (!comp) $("#gcErr").textContent = "בחר מסגרת: משחק אימון, גביע או ליגה";
+    if (!comp || c.bad){ toast("יש לתקן את השדות המסומנים"); return; }
     const rec = { date:$("#gd").value||key(new Date()), home:$("#gh").value==="1",
-                  opponent:$("#go").value.trim(), venue:$("#gv").value.trim() };
+                  opponent:$("#go").value.trim(), venue:$("#gv").value.trim(),
+                  season:$("#gs").value, comp:comp };
     GS.forEach(([k])=> rec[k] = num($("#g_"+k).value) || 0);
+    if (c.keepOld){ SHOT_KEYS.forEach(k=> rec[k] = null); rec.pts = oldPts; }
+    else { SHOT_KEYS.forEach(k=> rec[k] = c.o[k]); rec.pts = c.pts; }
     if (isNew){ data.games.push(Object.assign({id:uid("g"), playerId:data.activePlayerId, updatedAt:now(), deleted:false}, rec)); save(); }
     else { Object.assign(g, rec); touch(g); }
     render(); closeSheet(); toast(isNew?"המשחק נוסף":"נשמר");
@@ -804,7 +991,7 @@ function gameSheet(g){
 }
 const SCOPES = [["last","המשחק האחרון"],["30","30 הימים האחרונים"],["all","כל העונה"]];
 function scopeGames(scope){
-  const list = gameList();
+  const list = filteredGames();
   if (scope==="last") return list.slice(0,1);
   if (scope==="30"){ const lim = key(addDays(new Date(),-30)); return list.filter(g=> g.date>=lim); }
   return list;
@@ -817,11 +1004,13 @@ function buildGamesReport(list){
   L.push("דוח משחקים");
   L.push((nm?nm+" | ":"") + (list.length===1 ? shortDate(dates[0])
         : list.length+" משחקים · "+shortDate(dates[0])+" – "+shortDate(dates[dates.length-1])));
+  L.push("עונת "+curSeason() + (gameComps.length<COMPS.length ? " · "+gameComps.map(compName).join(", ") : ""));
   L.push("");
   list.slice().reverse().forEach(g=>{
-    L.push((g.home?"בית":"חוץ")+" מול "+(g.opponent||"יריבה")+" · "+shortDate(g.date));
-    L.push("נקודות "+(g.pts||0)+" · ריבאונדים "+(g.reb||0)+" · אסיסטים "+(g.ast||0)
+    L.push(compName(compOf(g))+" · "+(g.home?"בית":"חוץ")+" מול "+(g.opponent||"יריבה")+" · "+shortDate(g.date));
+    L.push("נקודות "+gPts(g)+" · ריבאונדים "+(g.reb||0)+" · אסיסטים "+(g.ast||0)
       +" · חטיפות "+(g.stl||0)+" · איבודים "+(g.tov||0)+" · דקות "+(g.min||0)+" · יעילות "+eff(g));
+    L.push(hasShots(g) ? "קליעה: "+shotLine(g) : "ללא נתוני זריקות");
     L.push("");
   });
   if (list.length>1){
@@ -834,15 +1023,23 @@ function buildGamesReport(list){
     L.push("דקות: "+(s.min/s.n).toFixed(1));
     L.push("");
   }
+  if (s.k){
+    L.push("קליעה"+(s.k<s.n ? ", מתוך "+s.k+" משחקים עם נתוני זריקות" : "")+":");
+    [["FG","fgm","fga"],["2P","p2m","p2a"],["3P","p3m","p3a"],["FT","ftm","fta"]].forEach(([l,m,a])=>
+      L.push(l+": "+s[m]+"/"+s[a]+(s[a] ? " · "+pctTxt(s[m],s[a]) : "")));
+    if (s.efg!==null) L.push("eFG: "+r1(s.efg*100)+"%");
+    if (s.ts!==null)  L.push("TS: "+r1(s.ts*100)+"%");
+    L.push("");
+  }
   L.push("יעילות למשחק: "+(s.eff/s.n).toFixed(1));
   if (s.min) L.push("יעילות ל-10 דקות: "+(s.eff/s.min*10).toFixed(1));
   if (s.tov) L.push("אסיסט לאיבוד: "+(s.ast/s.tov).toFixed(1));
   return L.map(l=> l?RLM+l:"").join("\n");
 }
 function gamesReportSheet(scope){
-  scope = scope || "all";
+  if (typeof scope!=="string") scope = "all";
   const text = buildGamesReport(scopeGames(scope)), coach = (P().coachPhone||"").trim();
-  openSheet('<h2>דוח משחקים</h2><p class="hint">נפרד מדוח האימונים השבועי</p>'
+  openSheet('<h2>דוח משחקים</h2><p class="hint">נפרד מדוח האימונים השבועי. כולל את העונה והמסגרות שנבחרו במסך המשחקים.</p>'
     + '<div class="segs">' + SCOPES.map(([k,l])=>'<button class="seg'+(k===scope?" on":"")+'" data-s="'+k+'">'+l+'</button>').join("") + '</div>'
     + '<pre class="report" id="rp">'+esc(text)+'</pre>'
     + (coach?'<button class="primary" id="wa" style="margin-bottom:8px">שליחה למאמן בוואטסאפ</button>':'')
