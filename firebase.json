@@ -1,25 +1,50 @@
 {
-  "hosting": {
-    "public": ".",
-    "ignore": [
-      "firebase.json",
-      "firestore.rules",
-      "README.md",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "headers": [
-      {
-        "source": "**",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
-        ]
-      }
-    ],
-    "rewrites": [
-      { "source": "**", "destination": "/index.html" }
-    ]
-  },
+  "hosting": [
+    {
+      "site": "michael-training-log",
+      "public": ".",
+      "ignore": [
+        "firebase.json",
+        "firestore.rules",
+        "README.md",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
+          ]
+        }
+      ],
+      "rewrites": [
+        { "source": "**", "destination": "/index.html" }
+      ]
+    },
+    {
+      "site": "betobasketballapp",
+      "public": ".",
+      "ignore": [
+        "firebase.json",
+        "firestore.rules",
+        "README.md",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
+          ]
+        }
+      ],
+      "rewrites": [
+        { "source": "**", "destination": "/index.html" }
+      ]
+    }
+  ],
   "firestore": {
     "rules": "firestore.rules"
   }
