@@ -111,6 +111,10 @@
   .fnote{font-size:13px;line-height:1.45;margin-top:4px}
   .fnote.ok{color:var(--done)}
   .fnote.warn{color:var(--accent)}
+  .prow{display:flex;gap:8px;align-items:stretch;margin-bottom:8px}
+  .prow .opt{flex:1;min-width:0;margin-bottom:0}
+  .pdel{flex:none;padding:0 14px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:#C63232;font-size:15px;font-weight:600}
+  .pdel:active{background:var(--line)}
   svg.chart{width:100%;height:auto;display:block;touch-action:pan-y}
 
   /* ----- bottom ----- */
@@ -258,7 +262,8 @@ window.TrainingCloud = {
   configured: !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId),
   api: null,
   onUser: function(){}, onHome: function(){}, onSpace: function(){}, onRecords: function(){},
-  onSettings: function(){}, onProblem: function(){}, onNotice: function(){}, onDown: function(){}
+  onSettings: function(){}, onProblem: function(){}, onNotice: function(){}, onDown: function(){},
+  onWatch: function(){}, onSynced: function(){}
 };
 </script>
 
@@ -300,16 +305,15 @@ const DEFAULT_TYPES = [
   ["אימון אישי – אלון", PALETTE[2], "👤"], ["אימון אישי – רגב", PALETTE[3], "👤"],
   ["אימון קליעות עצמאי", PALETTE[4], "🎯"]
 ];
+// נתונים ריקים, בלי שחקן ובלי סוגי אימון. שחקן נוצר רק אחרי שהמשיכה
+// הראשונה מהשרת הסתיימה והתברר שאין בו אף שחקן (ensurePlayer), או ידנית.
+// אחרת כל מכשיר חדש מייצר שחקן ריק משלו ודוחף אותו למרחב.
 function freshData(){
-  const pid = uid("p");
-  const t = (name,color,icon)=>({id:uid("t"),playerId:pid,name,color,icon,archived:false,updatedAt:now(),deleted:false});
   return {
-    schemaVersion:2, deviceId: uid("d"), activePlayerId: pid,
-    players:[{id:pid,name:"",dob:"",sex:"b",coachPhone:"",color:PALETTE[0],
-              template:{0:[],1:[],2:[],3:[],4:[],5:[],6:[]},templateOn:false,updatedAt:now(),deleted:false}],
+    schemaVersion:2, deviceId: uid("d"), activePlayerId: null,
+    players:[],
     settings:{parentPhone:"",deviceName:"",lastBackupAt:null,updatedAt:now()},
-    types: DEFAULT_TYPES.map(d=> t(d[0], d[1], d[2])),
-    entries:[], measurements:[], games:[]
+    types:[], entries:[], measurements:[], games:[]
   };
 }
 const COLS = ["players","types","entries","measurements","games"];
@@ -334,6 +338,8 @@ let authMode = "in";
 let busy = false;
 let pushed = {};            // id -> updatedAt שכבר נשלח לשרת
 let pushing = false, pushTimer = null;
+let synced = false;         // האם המשיכה הראשונה של השחקנים מהשרת הסתיימה
+let syncedSpace = null;     // המרחב שעבורו היא הסתיימה
 
 const BLANK_PLAYER = {id:"", name:"", dob:"", sex:"b", coachPhone:"", color:PALETTE[0],
   template:{0:[],1:[],2:[],3:[],4:[],5:[],6:[]}, templateOn:false, updatedAt:"", deleted:false};
@@ -345,6 +351,40 @@ const myTypes = (inclArch=false)=> mine("types").filter(t=>inclArch || !t.archiv
 const typeById = id => data.types.find(t=>t.id===id);
 function touch(r){ r.updatedAt = now(); save(); }
 function softDelete(r){ r.deleted = true; touch(r); }
+
+// השחקן שמוצג כברירת מחדל: הראשון שיש לו שם, ואם אין כזה, הראשון שנשאר
+function firstPlayer(){ const l = live("players"); return l.find(p=>(p.name||"").trim()) || l[0] || null; }
+// אם השחקן הפעיל נמחק או לא קיים, עוברים לשחקן אחר. מחזיר true אם משהו השתנה.
+function fixActivePlayer(){
+  if (data.players.some(p=> p.id===data.activePlayerId && !p.deleted)) return false;
+  const f = firstPlayer(), nid = f ? f.id : null;
+  if (nid === data.activePlayerId) return false;
+  data.activePlayerId = nid; return true;
+}
+function autoPlayerName(){
+  const n = (user && user.name || "").trim();
+  if (n) return n;
+  const e = (user && user.email || "").split("@")[0].trim();
+  return e || "שחקן";
+}
+// שחקן אוטומטי נוצר רק בחשבון מחובר, רק אחרי המשיכה הראשונה מהשרת, ורק אם אין אף שחקן.
+// המזהים קבועים לכל מרחב, כך ששני מכשירים שנכנסים יחד כותבים לאותו מסמך ולא יוצרים כפילות.
+function ensurePlayer(){
+  if (!WANTS_CLOUD || cloudDown || !synced || !syncedSpace || live("players").length) return false;
+  const pid = "p_auto_"+syncedSpace, stamp = now();
+  const rec = {id:pid, name:autoPlayerName(), dob:"", sex:"b", coachPhone:"", color:PALETTE[0],
+               template:{0:[],1:[],2:[],3:[],4:[],5:[],6:[]}, templateOn:false, updatedAt:stamp, deleted:false};
+  const cur = data.players.find(x=> x.id===pid);
+  if (cur) Object.assign(cur, rec); else data.players.push(rec);
+  DEFAULT_TYPES.forEach((d,i)=>{
+    const t = {id:"t_auto_"+syncedSpace+"_"+i, playerId:pid, name:d[0], color:d[1], icon:d[2], archived:false, updatedAt:stamp, deleted:false};
+    const ct = data.types.find(x=> x.id===t.id);
+    if (ct) Object.assign(ct, t); else data.types.push(t);
+  });
+  data.activePlayerId = pid;
+  save();
+  return true;
+}
 
 let saveTimer=null;
 function save(){
@@ -424,12 +464,35 @@ const num = v => (v===null||v===undefined||v==="") ? null : Number(v);
 
 function render(){
   document.querySelectorAll(".tab").forEach(b=> b.classList.toggle("on", b.dataset.tab===tab));
+  // בחירת שחקן מופיעה רק כשיש יותר משחקן אחד
   const many = live("players").length>1;
   $("#who").hidden = !many;
-  if (many) $("#who").textContent = (P().name||"שחקן");
+  if (many) $("#who").textContent = (P().name||"ללא שם");
+  $(".bar").hidden = false;
+  if (!P().id){ renderNoPlayer(); return; }
   if (tab==="train") renderTrain();
   if (tab==="grow")  renderGrow();
   if (tab==="games") renderGames();
+}
+
+function renderNoPlayer(){
+  $("#prev").classList.add("hid"); $("#next").classList.add("hid"); $("#todayBtn").hidden = true;
+  $("#range").textContent = "יומן אימונים";
+  if (WANTS_CLOUD && cloudDown){
+    $("#sub").textContent = "אין חיבור לשרת";
+    view.innerHTML = '<div class="blank">אין חיבור לשרת, ולכן עוד אי אפשר לדעת אילו שחקנים יש בחשבון.<br>הם יופיעו כשהחיבור יחזור.</div>';
+    $("#cta").textContent = "נסה שוב"; $("#cta").onclick = ()=> location.reload();
+    return;
+  }
+  if (WANTS_CLOUD && !synced){
+    $("#sub").textContent = "טוען נתונים";
+    view.innerHTML = '<div class="blank">טוען את הנתונים מהחשבון…</div>';
+    $(".bar").hidden = true;
+    return;
+  }
+  $("#sub").textContent = "עוד אין שחקן";
+  view.innerHTML = '<div class="blank">עוד אין שחקן במרחב הזה.<br>מתחילים בהוספת שחקן.</div>';
+  $("#cta").textContent = "הוספת שחקן"; $("#cta").onclick = ()=> playerSheet();
 }
 
 /* ---------------- אימונים ---------------- */
@@ -1205,8 +1268,27 @@ cloud.onUser = function(u){
   clearTimeout(gateWait);
   authKnown = true; busy = false; gateMsg = ""; gateOk = false;
   user = u;
-  if (!u){ space = null; pushed = {}; }
+  if (!u){ space = null; pushed = {}; synced = false; syncedSpace = null; }
   paintGate(); render();
+};
+// נקרא ממש לפני ההאזנה למרחב, כדי שהחלפת מרחב תנקה את הנתונים המקומיים
+// לפני שהרשומות של המרחב החדש מתחילות להגיע, ולא אחריהן.
+cloud.onWatch = function(sid){
+  synced = false; syncedSpace = null;
+  const known = localStorage.getItem(SPACEKEY);
+  if (sid !== known){
+    if (known) wipeLocal();
+    try{ localStorage.setItem(SPACEKEY, sid); }catch(e){}
+    pushed = {}; savePushed();
+  }
+  render();
+};
+// המשיכה הראשונה של השחקנים מהשרת הסתיימה: רק עכשיו מותר להחליט שאין שחקן
+cloud.onSynced = function(sid){
+  syncedSpace = sid; synced = true;
+  ensurePlayer();
+  if (fixActivePlayer()) save();
+  render();
 };
 cloud.onHome = function(id){ homeSpaceId = id; };
 cloud.onSpace = function(sp){
@@ -1231,10 +1313,7 @@ cloud.onRecords = function(col, list){
     if (!cur){ data[col].push(r); changed++; }
     else if ((r.updatedAt||"") > (cur.updatedAt||"")){ Object.assign(cur, r); changed++; }
   });
-  if (col==="players" && !data.activePlayerId){
-    const first = data.players.find(x=>!x.deleted);
-    if (first){ data.activePlayerId = first.id; changed++; }
-  }
+  if (col==="players" && fixActivePlayer()) changed++;
   if (changed){ Store.set(KEY, data); render(); }
   savePushed();
 };
@@ -1406,9 +1485,18 @@ function settingsSheet(){
   const p = P();
   const last = data.settings.lastBackupAt ? Math.round((Date.now()-new Date(data.settings.lastBackupAt).getTime())/864e5) : null;
   const hasPlayer = !!p.id;
-  let html = '<h2>הגדרות</h2><h3>שחקן</h3>';
-  live("players").forEach(x=> html += '<button class="opt" data-p="'+x.id+'"><span class="em">'+(x.id===p.id?"●":"○")+'</span>'
-    + esc(x.name||"ללא שם") + '<span class="tail">'+(x.dob?ageText(x.dob):"אין תאריך לידה")+'</span></button>');
+  const players = live("players"), many = players.length>1;
+  let html = '<h2>הגדרות</h2><h3>'+(many?"שחקנים":"שחקן")+'</h3>';
+  if (many){
+    // כמה שחקנים: בחירה (●/○), עריכה בהקשה על הפעיל, ומחיקה ליד כל אחד
+    players.forEach(x=> html += '<div class="prow"><button class="opt" data-p="'+x.id+'"><span class="em">'+(x.id===p.id?"●":"○")+'</span>'
+      + esc(x.name||"ללא שם") + '<span class="tail">'+(x.dob?ageText(x.dob):"אין תאריך לידה")+'</span></button>'
+      + '<button class="pdel" data-del="'+x.id+'" aria-label="מחיקת '+esc(x.name||"שחקן ללא שם")+'">מחיקה</button></div>');
+  } else if (hasPlayer){
+    // שחקן אחד: אין מה לבחור, רק עריכת הפרטים
+    html += '<button class="opt" data-p="'+p.id+'"><span class="em">👤</span>'+esc(p.name||"ללא שם")
+      + '<span class="tail">'+(p.dob?ageText(p.dob):"עריכת פרטים")+'</span></button>';
+  }
   html += '<button class="opt" id="addPlayer"><span class="em">✚</span>הוספת שחקן</button>';
   if (!hasPlayer) html += '<p class="hint">עוד אין שחקן במרחב הזה. מתחילים בהוספת שחקן.</p>';
   if (hasPlayer) html += '<h3>שבוע קבוע</h3>'
@@ -1444,6 +1532,7 @@ function settingsSheet(){
     if (x.id===data.activePlayerId) playerSheet(x);
     else { data.activePlayerId = x.id; save(); render(); closeSheet(); }
   });
+  sheet.querySelectorAll("[data-del]").forEach(b=> b.onclick = ()=> deletePlayerSheet(data.players.find(y=>y.id===b.dataset.del)));
   $("#addPlayer").onclick = ()=> playerSheet();
   if ($("#tg")) $("#tg").onclick = ()=>{ p.templateOn = !p.templateOn; $("#tg").classList.toggle("on",p.templateOn); $("#tpl").hidden = !p.templateOn; touch(p); render(); };
   sheet.querySelectorAll(".tpick").forEach(b=> b.onclick = ()=>{
@@ -1462,11 +1551,33 @@ function settingsSheet(){
   $("#imp").onclick = ()=> $("#f").click();
   $("#f").onchange = ev=>{ if (ev.target.files[0]) importBackup(ev.target.files[0]); };
 }
+// המחיקה עוברת דרך הנתונים המקומיים (deleted: true ו-updatedAt חדש), ומשם נדחפת לשרת
+// ומגיעה לשאר המכשירים. מחיקה ישירה של המסמך בשרת הייתה חוזרת מהעותק המקומי.
+function deletePlayerSheet(x){
+  if (!x) return;
+  if (live("players").length<2){ toast("אי אפשר למחוק את השחקן היחיד. אפשר לשנות לו את השם."); return; }
+  const cnt = c => live(c).filter(r=> r.playerId===x.id).length;
+  const e = cnt("entries"), m = cnt("measurements"), g = cnt("games");
+  const nm = (x.name||"").trim() || "השחקן ללא השם";
+  openSheet('<h2>מחיקת '+esc(nm)+'</h2>'
+    + '<p class="hint">'+((e||m||g)
+        ? 'לשחקן הזה רשומים '+e+' אימונים, '+m+' מדידות ו-'+g+' משחקים. הם לא יימחקו, אבל לא יוצגו יותר, כי הם שייכים לשחקן שנמחק.'
+        : 'אין לשחקן הזה אימונים, מדידות או משחקים.')
+    + ' המחיקה תעבור לכל המכשירים שמחוברים למרחב.</p>'
+    + '<button class="opt danger" id="yes"><span class="em">🗑</span>כן, למחוק</button>'
+    + '<button class="opt" id="no"><span class="em">↩︎</span>ביטול</button>');
+  $("#no").onclick = settingsSheet;
+  $("#yes").onclick = ()=>{
+    softDelete(x);
+    if (fixActivePlayer()) save();
+    render(); settingsSheet(); toast("השחקן נמחק");
+  };
+}
 function playerSheet(pl){
   const isNew = !pl;
   const v = pl || {name:"", dob:"", sex:"b", coachPhone:""};
   openSheet('<h2>'+(isNew?"שחקן חדש":"פרטי השחקן")+'</h2>'
-    + '<div class="field"><label>שם</label><input id="pn" value="'+esc(v.name)+'"></div>'
+    + '<div class="field"><label>שם</label><input id="pn" value="'+esc(v.name)+'" placeholder="שם השחקן"><div class="ferr" id="pnErr"></div></div>'
     + '<div class="grid2">'
     + '<div class="field"><label>תאריך לידה</label><input type="date" id="pd" value="'+esc(v.dob)+'"></div>'
     + '<div class="field"><label>מין (לחישוב אחוזון)</label><select id="ps"><option value="b"'+(v.sex==="g"?"":" selected")+'>בן</option><option value="g"'+(v.sex==="g"?" selected":"")+'>בת</option></select></div>'
@@ -1474,8 +1585,10 @@ function playerSheet(pl){
     + '<div class="field"><label>טלפון המאמן</label><input id="pc" type="tel" value="'+esc(v.coachPhone)+'" placeholder="050-0000000"></div>'
     + '<div class="field"><label>טלפון הורה לשליחת גיבוי</label><input id="pp" type="tel" value="'+esc(data.settings.parentPhone)+'"></div>'
     + '<button class="primary" id="ok">שמירה</button>');
+  $("#pn").oninput = ()=>{ $("#pnErr").textContent = ""; };
   $("#ok").onclick = ()=>{
     const rec = { name:$("#pn").value.trim(), dob:$("#pd").value, sex:$("#ps").value, coachPhone:$("#pc").value.trim() };
+    if (!rec.name){ $("#pnErr").textContent = "צריך למלא שם לשחקן"; $("#pn").focus(); return; }
     data.settings.parentPhone = $("#pp").value.trim(); data.settings.updatedAt = now();
     if (isNew){
       const np = Object.assign({id:uid("p"), color:PALETTE[live("players").length%6],
@@ -1611,7 +1724,10 @@ function migrate(d){
   d.settings = Object.assign({parentPhone:"",deviceName:"",lastBackupAt:null, updatedAt:now()}, d.settings||{});
   delete d.settings.sync;
   if (!d.deviceId) d.deviceId = uid("d");
-  if (!d.activePlayerId && d.players[0]) d.activePlayerId = d.players[0].id;
+  if (!d.players.some(p=> p.id===d.activePlayerId && !p.deleted)){
+    const l = d.players.filter(p=>!p.deleted), f = l.find(p=>(p.name||"").trim()) || l[0];
+    d.activePlayerId = f ? f.id : null;
+  }
   d.schemaVersion = 2;
   return d;
 }
@@ -1765,11 +1881,20 @@ if (bridge.configured) {
     function watch(sid) {
       unwatch();
       activeSpace = sid;
+      bridge.onWatch(sid);
+      var syncedOnce = false;
       COLS.forEach(function (c) {
-        stops.push(dbMod.onSnapshot(dbMod.collection(db, "spaces", sid, c), function (snap) {
+        // בשחקנים מאזינים גם לשינויי metadata: אם התמונה הראשונה הגיעה מהמטמון
+        // בלי רשת, נקבל אירוע נוסף כשהשרת מאשר אותה, גם אם התוכן לא השתנה.
+        var opts = c === "players" ? { includeMetadataChanges: true } : {};
+        stops.push(dbMod.onSnapshot(dbMod.collection(db, "spaces", sid, c), opts, function (snap) {
           var out = [];
           snap.forEach(function (d) { out.push(d.data()); });
           bridge.onRecords(c, out);
+          if (c === "players" && !syncedOnce && !snap.metadata.fromCache && activeSpace === sid) {
+            syncedOnce = true;
+            bridge.onSynced(sid);
+          }
         }, say));
       });
       stops.push(dbMod.onSnapshot(dbMod.doc(db, "spaces", sid), function (d) {
