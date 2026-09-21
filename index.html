@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="אימונים">
+<meta name="apple-mobile-web-app-title" content="BBA">
 <meta name="theme-color" content="#EEF1F5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0E1319" media="(prefers-color-scheme: dark)">
-<title>יומן אימונים</title>
+<title>Beto Basketball App</title>
 <link id="manifest" rel="manifest">
 <link id="appicon" rel="apple-touch-icon">
 <style>
@@ -185,7 +185,8 @@
   .gbox{width:100%;max-width:370px;text-align:center}
   .gmark{width:64px;height:64px;border-radius:18px;background:var(--accent);color:#fff;font-size:30px;
     display:grid;place-items:center;margin:0 auto 14px}
-  #gate h1{font-size:24px;margin:0 0 8px;letter-spacing:-.3px}
+  #gate h1{font-size:24px;margin:0 0 24px;letter-spacing:-.3px}
+  #gate h1+.gwait{margin-top:-16px}
   .glede{color:var(--muted);font-size:15px;line-height:1.5;margin:0 0 24px}
   .gbtn{width:100%;height:54px;border-radius:14px;border:1px solid var(--line);background:var(--card);
     font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px}
@@ -249,7 +250,7 @@
    =========================================================================== */
 var FIREBASE_CONFIG = {
   apiKey: "AIzaSyBA3x6aHAD5yNIoSW0jXzMBIX43rh148lY",
-  authDomain: "michael-training-log.firebaseapp.com",
+  authDomain: "betobasketballapp.firebaseapp.com",
   projectId: "michael-training-log",
   storageBucket: "michael-training-log.firebasestorage.app",
   messagingSenderId: "863583117463",
@@ -477,7 +478,7 @@ function render(){
 
 function renderNoPlayer(){
   $("#prev").classList.add("hid"); $("#next").classList.add("hid"); $("#todayBtn").hidden = true;
-  $("#range").textContent = "יומן אימונים";
+  $("#range").textContent = "Beto Basketball App";
   if (WANTS_CLOUD && cloudDown){
     $("#sub").textContent = "אין חיבור לשרת";
     view.innerHTML = '<div class="blank">אין חיבור לשרת, ולכן עוד אי אפשר לדעת אילו שחקנים יש בחשבון.<br>הם יופיעו כשהחיבור יחזור.</div>';
@@ -1338,13 +1339,11 @@ function paintGate(){
   if (!locked) return;
   const box = document.getElementById("gbox");
   if (!authKnown){
-    box.innerHTML = '<div class="gmark">🏀</div><h1>יומן אימונים</h1><p class="gwait">רגע, בודק אם כבר נכנסת…</p>';
+    box.innerHTML = '<div class="gmark">🏀</div><h1>Beto Basketball App</h1><p class="gwait">רגע, בודק אם כבר נכנסת…</p>';
     return;
   }
   box.innerHTML = '<div class="gmark">🏀</div>'
-    + '<h1>יומן אימונים</h1>'
-    + '<p class="glede">האימונים, המדידות והמשחקים נשמרים בחשבון שלך, ונפתחים בכל מכשיר שתיכנס ממנו. '
-    + 'לכל משתמש יש נתונים נפרדים.</p>'
+    + '<h1>Beto Basketball App</h1>'
     + '<button class="gbtn" id="gGoogle"' + (busy?" disabled":"") + '><span class="g">G</span>כניסה עם Google</button>'
     + '<p class="gmsg' + (gateOk?" ok":"") + '">' + esc(gateMsg) + '</p>';
 
@@ -1450,7 +1449,7 @@ async function exportBackup(){
   try{
     const file = new File([json], fname, {type:"application/json"});
     if (navigator.canShare && navigator.canShare({files:[file]})){
-      await navigator.share({files:[file], title:"גיבוי יומן אימונים"});
+      await navigator.share({files:[file], title:"גיבוי Beto Basketball App"});
       toast("הגיבוי נשלח"); closeSheet(); return;
     }
   }catch(e){}
@@ -1701,7 +1700,7 @@ document.addEventListener("visibilitychange", ()=>{ if (!document.hidden){ rende
   const icon = "data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(svg)));
   const el = document.getElementById("appicon"); if (el) el.href = icon;
   try{
-    const m = {name:"יומן אימונים", short_name:"אימונים", dir:"rtl", lang:"he", display:"standalone",
+    const m = {name:"Beto Basketball App", short_name:"BBA", dir:"rtl", lang:"he", display:"standalone",
       background_color:"#EEF1F5", theme_color:"#E4571B", start_url:".", icons:[{src:icon, sizes:"180x180", type:"image/svg+xml"}]};
     const mel = document.getElementById("manifest");
     if (mel) mel.href = URL.createObjectURL(new Blob([JSON.stringify(m)],{type:"application/manifest+json"}));
