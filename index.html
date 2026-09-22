@@ -1850,13 +1850,62 @@ if (bridge.configured) {
       await measBatch.commit();
     }
 
-        async function ensureSpace(u) {
+    /* מחפש מרחב קיים שהמייל הזה כבר חבר בו. כך משתמש שכבר שייך
+       למרחב לא מקבל בטעות מרחב חדש וריק. אם אין, או אם השאילתה
+       נכשלה, מחזיר null והתהליך ממשיך כרגיל. */
+    async function findSpaceForEmail(email, uid) {
+      if (!email) return null;
+      try {
+        var res = await dbMod.getDocs(dbMod.query(
+          dbMod.collection(db, "spaces"),
+          dbMod.where("memberEmails", "array-contains", email)
+        ));
+        var found = [];
+        res.forEach(function (d) { found.push({ id: d.id, data: d.data() || {} }); });
+        if (!found.length) return null;
+        // מעדיפים מרחב שהמשתמש עצמו הבעלים שלו, ואחריו הוותיק ביותר
+        found.sort(function (a, b) {
+          var ao = a.data.ownerUid === uid ? 0 : 1;
+          var bo = b.data.ownerUid === uid ? 0 : 1;
+          if (ao !== bo) return ao - bo;
+          return String(a.data.createdAt || "").localeCompare(String(b.data.createdAt || ""));
+        });
+        return found[0];
+      } catch (e) {
+        console.warn("space lookup failed", e);
+        return null;
+      }
+    }
+
+    /* המרחב שהמשתמש מחובר אליו עדיין קיים? כשאין רשת או שהבדיקה
+       נכשלת מחזיר true, כדי לא לנתק אף אחד בטעות. */
+    async function spaceUsable(sid) {
+      try {
+        var s = await dbMod.getDoc(dbMod.doc(db, "spaces", sid));
+        return s.exists();
+      } catch (e) { return true; }
+    }
+
+    async function ensureSpace(u) {
       var uref = dbMod.doc(db, "users", u.uid);
       var snap = await dbMod.getDoc(uref);
       var cur = snap.exists() ? snap.data() : null;
-      if (cur && cur.spaceId) return { spaceId: cur.spaceId, homeSpaceId: cur.homeSpaceId || cur.spaceId };
-
       var email = (u.email || "").toLowerCase();
+
+      if (cur && cur.spaceId && await spaceUsable(cur.spaceId))
+        return { spaceId: cur.spaceId, homeSpaceId: cur.homeSpaceId || cur.spaceId };
+
+      // לפני פתיחת מרחב חדש: אולי המייל הזה כבר חבר במרחב קיים
+      var mine = await findSpaceForEmail(email, u.uid);
+      if (mine) {
+        var home = mine.data.ownerUid === u.uid
+          ? mine.id
+          : ((cur && cur.homeSpaceId) || mine.id);
+        await dbMod.setDoc(uref,
+          { email: email, spaceId: mine.id, homeSpaceId: home }, { merge: true });
+        return { spaceId: mine.id, homeSpaceId: home };
+      }
+
       for (var i = 0; i < 8; i++) {
         var id = newCode();
         try {
