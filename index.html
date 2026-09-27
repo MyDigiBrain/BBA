@@ -1119,30 +1119,19 @@ function gamesReportSheet(scope){
    5. דוח שבועי ושיתוף
    ============================================================ */
 function buildReport(){
-  const s = startOfWeek(cursor), L = [], nm = (P().name||"").trim();
-  L.push("דוח אימונים שבועי");
-  L.push((nm?nm+" | ":"")+rangeLabel(s));
+  const s = startOfWeek(cursor), L = [];
+  L.push("היי רז,");
+  L.push("זה הלו״ז שלי לשבוע הקרוב:");
   L.push("");
-  let total = 0; const byType = {}; const missed = [];
   for (let i=0;i<7;i++){
     const k = key(addDays(s,i)), list = entriesOf(k);
-    total += list.length;
     const parts = groupEntries(list).map(g=>{
       const t = typeById(g.typeId), tn = t?t.name:"אימון";
-      g.entries.forEach(()=> byType[tn] = (byType[tn]||0)+1);
       const note = g.entries.map(e=>e.note).filter(Boolean).join(", ");
       return tn + (g.entries.length>1?" ×"+g.entries.length:"") + (note?" ("+note+")":"");
     });
     L.push(DAYS[i]+": "+(parts.length?parts.join(", "):"ללא אימון"));
-    if (P().templateOn){
-      const done = list.map(e=>e.typeId);
-      (P().template[i]||[]).forEach(id=>{ if (!done.includes(id) && typeById(id)) missed.push(DAYS[i]+": "+typeById(id).name); });
-    }
   }
-  L.push(""); L.push("סה״כ השבוע: "+total+(total===1?" אימון":" אימונים"));
-  const ks = Object.keys(byType);
-  if (ks.length){ L.push(""); L.push("סיכום לפי סוג:"); ks.forEach(k2=> L.push(k2+": "+byType[k2])); }
-  if (missed.length){ L.push(""); L.push("תוכנן ולא בוצע:"); missed.forEach(m=> L.push(m)); }
   return L.map(l=> l?RLM+l:"").join("\n");
 }
 function reportSheet(){
